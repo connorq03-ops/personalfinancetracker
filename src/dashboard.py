@@ -47,13 +47,17 @@ class DashboardGenerator:
             # Get top merchants
             top_merchants = self._get_top_merchants(transactions)
             
+            # Get spending trends (last 6 months)
+            trends = self._get_spending_trends(user_id, year, month)
+            
             return {
                 'year': year,
                 'month': month,
                 'summary': summary,
                 'by_category': by_category,
                 'by_group': by_group,
-                'top_merchants': top_merchants
+                'top_merchants': top_merchants,
+                'trends': trends
             }
         finally:
             session.close()
@@ -137,6 +141,51 @@ class DashboardGenerator:
         sorted_merchants = sorted(merchant_totals.items(), key=lambda x: x[1], reverse=True)
         
         return [{'name': name, 'amount': round(amt, 2)} for name, amt in sorted_merchants[:limit]]
+    
+    def _get_spending_trends(self, user_id, current_year, current_month, num_months=6):
+        """Get spending trends for the last N months."""
+        session = get_session()
+        try:
+            trends = []
+            excluded_ids = self._get_excluded_category_ids(session)
+            
+            for i in range(num_months - 1, -1, -1):
+                # Calculate month offset
+                month = current_month - i
+                year = current_year
+                while month <= 0:
+                    month += 12
+                    year -= 1
+                
+                # Get date range
+                start_date = date(year, month, 1)
+                if month == 12:
+                    end_date = date(year + 1, 1, 1)
+                else:
+                    end_date = date(year, month + 1, 1)
+                
+                # Get transactions
+                transactions = session.query(Transaction).filter(
+                    Transaction.user_id == user_id,
+                    Transaction.date >= start_date,
+                    Transaction.date < end_date
+                ).all()
+                
+                income = sum(t.amount for t in transactions if t.amount > 0)
+                expenses = sum(abs(t.amount) for t in transactions 
+                              if t.amount < 0 and t.category_id not in excluded_ids)
+                
+                trends.append({
+                    'month': start_date.strftime('%b'),
+                    'year': year,
+                    'income': round(income, 2),
+                    'expenses': round(expenses, 2),
+                    'net': round(income - expenses, 2)
+                })
+            
+            return trends
+        finally:
+            session.close()
     
     def get_available_months(self, user_id=1):
         """Get list of months that have transactions."""

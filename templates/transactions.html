@@ -108,9 +108,14 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
-            <i class="bi bi-list-ul me-2"></i>{{ month_name }} {{ year }}
+            <i class="bi bi-list-ul me-2"></i>{{ month_name }} {% if not show_all %}{{ year }}{% endif %}
         </h5>
-        <span class="badge bg-primary">{{ transactions|length }} transactions</span>
+        <div>
+            <button class="btn btn-sm btn-outline-warning me-2" onclick="bulkRecategorize()" title="Apply ML to uncategorized">
+                <i class="bi bi-magic me-1"></i>Auto-Categorize
+            </button>
+            <span class="badge bg-primary">{{ transactions|length }} transactions</span>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive" style="max-height: calc(100vh - 400px); min-height: 400px; overflow-y: auto;">
@@ -350,6 +355,39 @@
             }
         } catch (error) {
             alert('Error deleting transaction: ' + error.message);
+        }
+    }
+    
+    async function bulkRecategorize() {
+        if (!confirm('Apply ML categorization to all uncategorized transactions?')) {
+            return;
+        }
+        
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Processing...';
+        btn.disabled = true;
+        
+        try {
+            const response = await fetch('/api/transactions/recategorize', {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                alert(data.message);
+                if (data.count > 0) {
+                    location.reload();
+                }
+            } else {
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
     }
 </script>

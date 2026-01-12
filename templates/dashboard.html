@@ -82,6 +82,20 @@
     </div>
 </div>
 
+<!-- Spending Trends Chart -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>6-Month Spending Trends</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="trendsChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Category Breakdown Table -->
 <div class="row mt-4">
     <div class="col-12">
@@ -127,6 +141,7 @@
 <script>
     const categoryData = {{ data.by_category | tojson }};
     const groupData = {{ data.by_group | tojson }};
+    const trendsData = {{ data.trends | tojson }};
     
     const colors = [
         '#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b',
@@ -193,6 +208,59 @@
                 y: {
                     grid: { display: false },
                     ticks: { color: '#e2e8f0' }
+                }
+            }
+        }
+    });
+    
+    // Spending Trends Line Chart
+    new Chart(document.getElementById('trendsChart'), {
+        type: 'line',
+        data: {
+            labels: trendsData.map(t => t.month),
+            datasets: [
+                {
+                    label: 'Income',
+                    data: trendsData.map(t => t.income),
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'Expenses',
+                    data: trendsData.map(t => t.expenses),
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    labels: { color: '#e2e8f0' }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: $${ctx.raw.toFixed(2)}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: { color: '#e2e8f0' }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: { 
+                        color: '#e2e8f0',
+                        callback: (value) => '$' + value.toLocaleString()
+                    }
                 }
             }
         }

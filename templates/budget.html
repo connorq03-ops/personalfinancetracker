@@ -122,9 +122,12 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="/api/budgets/{{ b.id }}" class="btn btn-sm btn-outline-primary">
+                            <a href="/api/budgets/{{ b.id }}" class="btn btn-sm btn-outline-primary me-1">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteBudget({{ b.id }}, '{{ b.name }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -161,6 +164,27 @@
             }
         } catch (error) {
             alert('Error creating budget: ' + error.message);
+        }
+    }
+    
+    async function deleteBudget(budgetId, budgetName) {
+        if (!confirm(`Delete budget "${budgetName}"?`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/budgets/${budgetId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                const data = await response.json();
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error deleting budget: ' + error.message);
         }
     }
 </script>

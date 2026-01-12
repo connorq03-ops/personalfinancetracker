@@ -381,6 +381,75 @@ def get_budget_status(budget_id):
     return jsonify(status)
 
 
+@app.route('/api/budgets/<int:budget_id>', methods=['DELETE'])
+def delete_budget(budget_id):
+    """Delete a budget."""
+    session = get_session()
+    try:
+        from models import Budget, BudgetItem
+        budget = session.query(Budget).filter_by(id=budget_id).first()
+        if not budget:
+            return jsonify({'error': 'Budget not found'}), 404
+        
+        # Delete items first
+        session.query(BudgetItem).filter_by(budget_id=budget_id).delete()
+        session.delete(budget)
+        session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+# =============================================================================
+# API - Bulk Operations
+# =============================================================================
+
+@app.route('/api/transactions/recategorize', methods=['POST'])
+def bulk_recategorize():
+    """Apply ML categorization to all uncategorized transactions."""
+    session = get_session()
+    try:
+        # Get uncategorized category
+        uncategorized = session.query(Category).filter_by(name='Uncategorized', user_id=1).first()
+        if not uncategorized:
+            return jsonify({'error': 'No uncategorized category found'}), 404
+        
+        # Get all uncategorized transactions
+        transactions = session.query(Transaction).filter_by(
+            category_id=uncategorized.id,
+            user_id=1
+        ).all()
+        
+        if not transactions:
+            return jsonify({'message': 'No uncategorized transactions found', 'count': 0})
+        
+        # Get category mapping
+        categories = {c.name: c.id for c in session.query(Category).filter_by(user_id=1).all()}
+        
+        updated = 0
+        for t in transactions:
+            predicted = categorizer.predict(t.description)
+            if predicted != 'Uncategorized' and predicted in categories:
+                t.category_id = categories[predicted]
+                updated += 1
+        
+        session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'Recategorized {updated} of {len(transactions)} transactions',
+            'count': updated,
+            'total': len(transactions)
+        })
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
 # =============================================================================
 # API - File Upload
 # =============================================================================
