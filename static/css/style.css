@@ -1,0 +1,298 @@
+/* Personal Finance Tracker - Custom Styles */
+
+:root {
+    --primary: #6366f1;
+    --secondary: #06b6d4;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --purple: #8b5cf6;
+    --bg-dark: #1e1b4b;
+    --bg-card: rgba(30, 27, 75, 0.8);
+    --text-primary: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Base Styles */
+body {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    min-height: 100vh;
+}
+
+/* Navigation */
+.navbar {
+    background: rgba(30, 27, 75, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.navbar-brand {
+    color: var(--primary) !important;
+}
+
+.nav-link {
+    color: var(--text-muted) !important;
+    transition: color 0.2s;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: var(--text-primary) !important;
+}
+
+/* Cards */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+}
+
+.card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Stat Cards */
+.stat-card {
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2);
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+/* Tables */
+.table {
+    color: var(--text-primary);
+}
+
+.table thead th {
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table-hover tbody tr:hover {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+/* Category Badges */
+.category-badge {
+    background: linear-gradient(135deg, var(--primary), var(--purple));
+    color: white;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.category-badge:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* Source Badges */
+.source-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    margin-left: 0.35rem;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.source-badge.rh {
+    background: #00c805;
+    color: #000;
+}
+
+.source-badge.boa {
+    background: #012169;
+    color: #fff;
+}
+
+.source-badge.venmo {
+    background: #008cff;
+    color: #fff;
+}
+
+/* Month Navigation */
+.month-nav {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.month-nav .btn {
+    border-radius: 20px;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+}
+
+.month-nav .btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Forms */
+.form-control,
+.form-select {
+    background: rgba(30, 27, 75, 0.6);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background: rgba(30, 27, 75, 0.8);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    color: var(--text-primary);
+}
+
+.form-label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--purple));
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #5558e3, #7c4fe0);
+    transform: translateY(-1px);
+}
+
+.btn-outline-light {
+    border-color: var(--border-color);
+    color: var(--text-muted);
+}
+
+.btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--text-primary);
+    color: var(--text-primary);
+}
+
+/* Progress Bars */
+.progress {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, var(--primary), var(--purple));
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* Upload Zone */
+.upload-zone {
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    color: var(--text-muted);
+}
+
+.upload-zone:hover,
+.upload-zone.dragover {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--text-primary);
+}
+
+.upload-result {
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.upload-result.success {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.upload-result.error {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+}
+
+.upload-result.uploading {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--primary);
+}
+
+/* Modal */
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-close {
+    filter: invert(1);
+}
+
+/* Text Colors */
+.text-success { color: var(--success) !important; }
+.text-danger { color: var(--danger) !important; }
+.text-warning { color: var(--warning) !important; }
+.text-muted { color: var(--text-muted) !important; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stat-value {
+        font-size: 1.25rem;
+    }
+    
+    .month-nav {
+        justify-content: center;
+    }
+    
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+}

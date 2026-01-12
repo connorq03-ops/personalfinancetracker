@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Budget | Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-piggy-bank me-2"></i>Budget Manager</h2>
+    <button class="btn btn-primary" onclick="createBudgetFromAverages()">
+        <i class="bi bi-magic me-1"></i>Create from 3-Month Averages
+    </button>
+</div>
+
+{% if budget_status %}
+<!-- Active Budget Status -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-bar-chart-line me-2"></i>{{ budget_status.budget_name }} - {{ budget_status.period }}
+        </h5>
+    </div>
+    <div class="card-body">
+        <!-- Summary -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <div class="stat-label">Total Budgeted</div>
+                        <div class="stat-value">${{ "%.2f"|format(budget_status.total_budgeted) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <div class="stat-label">Total Spent</div>
+                        <div class="stat-value {% if budget_status.total_actual > budget_status.total_budgeted %}text-danger{% else %}text-success{% endif %}">
+                            ${{ "%.2f"|format(budget_status.total_actual) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Category Breakdown -->
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th class="text-end">Budgeted</th>
+                        <th class="text-end">Actual</th>
+                        <th class="text-end">Remaining</th>
+                        <th style="width: 30%">Progress</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in budget_status.items %}
+                    <tr>
+                        <td>{{ item.category }}</td>
+                        <td class="text-end">${{ "%.2f"|format(item.budgeted) }}</td>
+                        <td class="text-end">${{ "%.2f"|format(item.actual) }}</td>
+                        <td class="text-end {% if item.variance < 0 %}text-danger{% else %}text-success{% endif %}">
+                            ${{ "%.2f"|format(item.variance) }}
+                        </td>
+                        <td>
+                            <div class="progress" style="height: 24px;">
+                                {% set pct = item.percent_used if item.percent_used <= 100 else 100 %}
+                                <div class="progress-bar {% if item.percent_used > 100 %}bg-danger{% elif item.percent_used > 80 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     style="width: {{ pct }}%">
+                                    {{ "%.0f"|format(item.percent_used) }}%
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- No Active Budget -->
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-piggy-bank fs-1 text-muted mb-3 d-block"></i>
+        <h4>No Active Budget</h4>
+        <p class="text-muted">Create a budget to start tracking your spending goals.</p>
+        <button class="btn btn-primary btn-lg" onclick="createBudgetFromAverages()">
+            <i class="bi bi-magic me-1"></i>Create Budget from 3-Month Averages
+        </button>
+    </div>
+</div>
+{% endif %}
+
+<!-- All Budgets -->
+{% if budgets %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-collection me-2"></i>All Budgets</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in budgets %}
+                    <tr>
+                        <td>{{ b.name }}</td>
+                        <td>{{ b.period_type }}</td>
+                        <td>
+                            {% if b.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/api/budgets/{{ b.id }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function createBudgetFromAverages() {
+        const name = prompt('Enter budget name:', 'Monthly Budget');
+        if (!name) return;
+        
+        try {
+            const response = await fetch('/api/budgets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    from_averages: true,
+                    months: 3
+                })
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                const data = await response.json();
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error creating budget: ' + error.message);
+        }
+    }
+</script>
+{% endblock %}

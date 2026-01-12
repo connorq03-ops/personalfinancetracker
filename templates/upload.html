@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Statements | Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-cloud-upload me-2"></i>Upload Statements</h2>
+
+<div class="row g-4">
+    <!-- Bank of America -->
+    <div class="col-md-4">
+        <div class="card upload-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-bank fs-1 text-primary mb-3"></i>
+                <h5>Bank of America</h5>
+                <p class="text-muted small">Upload PDF statements</p>
+                
+                <div class="upload-zone" id="boaZone" 
+                     ondrop="handleDrop(event, 'boa')" 
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)">
+                    <i class="bi bi-file-earmark-pdf fs-3 mb-2"></i>
+                    <p class="mb-0">Drag & drop PDF here</p>
+                    <small class="text-muted">or click to browse</small>
+                    <input type="file" id="boaInput" accept=".pdf" onchange="handleFileSelect(event, 'boa')" hidden>
+                </div>
+                
+                <div id="boaResult" class="upload-result mt-3"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Robinhood -->
+    <div class="col-md-4">
+        <div class="card upload-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-graph-up-arrow fs-1 text-success mb-3"></i>
+                <h5>Robinhood</h5>
+                <p class="text-muted small">Upload CSV exports</p>
+                
+                <div class="upload-zone" id="robinhoodZone"
+                     ondrop="handleDrop(event, 'robinhood')" 
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)">
+                    <i class="bi bi-file-earmark-spreadsheet fs-3 mb-2"></i>
+                    <p class="mb-0">Drag & drop CSV here</p>
+                    <small class="text-muted">or click to browse</small>
+                    <input type="file" id="robinhoodInput" accept=".csv" onchange="handleFileSelect(event, 'robinhood')" hidden>
+                </div>
+                
+                <div id="robinhoodResult" class="upload-result mt-3"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Venmo -->
+    <div class="col-md-4">
+        <div class="card upload-card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-phone fs-1 text-info mb-3"></i>
+                <h5>Venmo</h5>
+                <p class="text-muted small">Upload CSV exports</p>
+                
+                <div class="upload-zone" id="venmoZone"
+                     ondrop="handleDrop(event, 'venmo')" 
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)">
+                    <i class="bi bi-file-earmark-spreadsheet fs-3 mb-2"></i>
+                    <p class="mb-0">Drag & drop CSV here</p>
+                    <small class="text-muted">or click to browse</small>
+                    <input type="file" id="venmoInput" accept=".csv" onchange="handleFileSelect(event, 'venmo')" hidden>
+                </div>
+                
+                <div id="venmoResult" class="upload-result mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Instructions -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>How to Export Statements</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <h6>Bank of America</h6>
+                <ol class="small">
+                    <li>Log into your BoA account</li>
+                    <li>Go to Statements & Documents</li>
+                    <li>Download PDF statement</li>
+                </ol>
+            </div>
+            <div class="col-md-4">
+                <h6>Robinhood</h6>
+                <ol class="small">
+                    <li>Open Robinhood app/web</li>
+                    <li>Go to Account → Statements</li>
+                    <li>Download CSV export</li>
+                </ol>
+            </div>
+            <div class="col-md-4">
+                <h6>Venmo</h6>
+                <ol class="small">
+                    <li>Log into Venmo web</li>
+                    <li>Go to Statements</li>
+                    <li>Download CSV for date range</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Make upload zones clickable
+    document.querySelectorAll('.upload-zone').forEach(zone => {
+        zone.addEventListener('click', function() {
+            const type = this.id.replace('Zone', '');
+            document.getElementById(type + 'Input').click();
+        });
+    });
+    
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('dragover');
+    }
+    
+    function handleDragLeave(e) {
+        e.currentTarget.classList.remove('dragover');
+    }
+    
+    function handleDrop(e, type) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            uploadFile(files[0], type);
+        }
+    }
+    
+    function handleFileSelect(e, type) {
+        const files = e.target.files;
+        if (files.length > 0) {
+            uploadFile(files[0], type);
+        }
+    }
+    
+    async function uploadFile(file, type) {
+        const resultEl = document.getElementById(type + 'Result');
+        resultEl.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Uploading...';
+        resultEl.className = 'upload-result uploading';
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch(`/api/upload/${type}`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                resultEl.innerHTML = `<i class="bi bi-check-circle me-2"></i>${data.message}`;
+                resultEl.className = 'upload-result success';
+            } else {
+                resultEl.innerHTML = `<i class="bi bi-x-circle me-2"></i>${data.error}`;
+                resultEl.className = 'upload-result error';
+            }
+        } catch (error) {
+            resultEl.innerHTML = `<i class="bi bi-x-circle me-2"></i>Upload failed: ${error.message}`;
+            resultEl.className = 'upload-result error';
+        }
+    }
+</script>
+{% endblock %}

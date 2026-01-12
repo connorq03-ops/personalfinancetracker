@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Personal Finance Tracker{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Month Navigation -->
+<div class="month-nav mb-4">
+    {% for m in available_months %}
+    <a href="?year={{ m.year }}&month={{ m.month }}" 
+       class="btn btn-outline-light {% if m.year == year and m.month == month %}active{% endif %}">
+        {{ m.label }}
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <div class="stat-label">Income</div>
+                <div class="stat-value text-success">${{ "%.2f"|format(data.summary.income) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <div class="stat-label">Expenses</div>
+                <div class="stat-value text-danger">${{ "%.2f"|format(data.summary.expenses) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <div class="stat-label">Net Cashflow</div>
+                <div class="stat-value {% if data.summary.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    ${{ "%.2f"|format(data.summary.net) }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="card-body text-center">
+                <div class="stat-label">Savings Rate</div>
+                <div class="stat-value">{{ data.summary.savings_rate }}%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4">
+    <!-- Spending by Category -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Spending by Category</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Spending by Group -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Spending by Group</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="groupChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Breakdown Table -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Category Breakdown</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-end">Amount</th>
+                                <th style="width: 40%">% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in data.by_category %}
+                            <tr>
+                                <td>{{ cat.name }}</td>
+                                <td class="text-end">${{ "%.2f"|format(cat.amount) }}</td>
+                                <td>
+                                    {% set pct = (cat.amount / data.summary.expenses * 100) if data.summary.expenses > 0 else 0 %}
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar" style="width: {{ pct }}%">
+                                            {{ "%.1f"|format(pct) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const categoryData = {{ data.by_category | tojson }};
+    const groupData = {{ data.by_group | tojson }};
+    
+    const colors = [
+        '#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b',
+        '#ef4444', '#ec4899', '#14b8a6', '#f97316', '#84cc16'
+    ];
+    
+    // Category Doughnut Chart
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'doughnut',
+        data: {
+            labels: categoryData.map(c => c.name),
+            datasets: [{
+                data: categoryData.map(c => c.amount),
+                backgroundColor: colors,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '60%',
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { color: '#e2e8f0' }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `$${ctx.raw.toFixed(2)}`
+                    }
+                }
+            }
+        }
+    });
+    
+    // Group Bar Chart
+    new Chart(document.getElementById('groupChart'), {
+        type: 'bar',
+        data: {
+            labels: groupData.map(g => g.name),
+            datasets: [{
+                data: groupData.map(g => g.amount),
+                backgroundColor: colors,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `$${ctx.raw.toFixed(2)}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: { color: '#e2e8f0' }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: '#e2e8f0' }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
