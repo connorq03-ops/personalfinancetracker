@@ -140,16 +140,18 @@ class BudgetManager:
                 end_date = date(year, month + 1, 1)
             
             # Get actual spending by category
+            # Note: Some transactions may have positive amounts (expenses) or negative (income)
+            # We want all non-income transactions for budget tracking
             transactions = session.query(Transaction).filter(
                 Transaction.user_id == self.user_id,
                 Transaction.date >= start_date,
-                Transaction.date < end_date,
-                Transaction.amount < 0
+                Transaction.date < end_date
             ).all()
             
             actual_by_category = {}
             for t in transactions:
                 cat_id = t.category_id
+                # Use absolute value to handle both positive and negative expense amounts
                 actual_by_category[cat_id] = actual_by_category.get(cat_id, 0) + abs(t.amount)
             
             # Build status for each budget item

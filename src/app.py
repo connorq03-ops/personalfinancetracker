@@ -451,6 +451,136 @@ def delete_budget(budget_id):
         session.close()
 
 
+@app.route('/api/budgets/import', methods=['POST'])
+def import_budget():
+    """Import a budget from an Excel or CSV file."""
+    from parsers.budget_parser import BudgetParser
+    from models import Budget, BudgetItem
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    budget_name = request.form.get('name', 'Imported Budget')
+    
+    session = get_session()
+    try:
+        # Parse the budget file
+        parser = BudgetParser()
+        parsed = parser.parse_file_object(file, file.filename)
+        
+        # Get existing categories
+        categories = session.query(Category).filter_by(user_id=1).all()
+        existing_cats = {c.name.lower(): c for c in categories}
+        
+        # Create the budget
+        budget = Budget(
+            user_id=1,
+            name=budget_name,
+            period_type='monthly',
+            is_active=True
+        )
+        session.add(budget)
+        session.commit()
+        
+        # Process each budget item
+        items_created = 0
+        categories_created = 0
+        current_period = date.today().strftime('%Y-%m')
+        
+        for item in parsed['all_items']:
+            if item['amount'] <= 0:
+                continue
+            
+            cat_name = item['category']
+            cat_lower = cat_name.lower()
+            
+            # Find or create category
+            if cat_lower in existing_cats:
+                category = existing_cats[cat_lower]
+            else:
+                # Create new category with the group from the budget
+                category = Category(
+                    name=cat_name,
+                    group=item['group'],
+                    user_id=1
+                )
+                session.add(category)
+                session.commit()
+                existing_cats[cat_lower] = category
+                categories_created += 1
+            
+            # Create budget item
+            budget_item = BudgetItem(
+                budget_id=budget.id,
+                category_id=category.id,
+                budgeted_amount=item['amount'],
+                period=current_period
+            )
+            session.add(budget_item)
+            items_created += 1
+        
+        session.commit()
+        
+        return jsonify({
+            'success': True,
+            'budget_id': budget.id,
+            'budget_name': budget_name,
+            'items_created': items_created,
+            'categories_created': categories_created,
+            'total_budget': parsed['total_budget'],
+            'sections': {name: len(items) for name, items in parsed['sections'].items()},
+            'parse_errors': parsed['parse_errors']
+        })
+        
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route('/api/budgets/preview', methods=['POST'])
+def preview_budget_import():
+    """Preview a budget file before importing."""
+    from parsers.budget_parser import BudgetParser
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    try:
+        parser = BudgetParser()
+        parsed = parser.parse_file_object(file, file.filename)
+        
+        # Get existing categories for matching
+        session = get_session()
+        categories = session.query(Category).filter_by(user_id=1).all()
+        existing_cats = {c.name.lower() for c in categories}
+        session.close()
+        
+        # Add match status to each item
+        for item in parsed['all_items']:
+            item['exists'] = item['category'].lower() in existing_cats
+        
+        return jsonify({
+            'success': True,
+            'total_budget': parsed['total_budget'],
+            'sections': parsed['sections'],
+            'all_items': parsed['all_items'],
+            'parse_errors': parsed['parse_errors']
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # =============================================================================
 # API - Bulk Operations
 # =============================================================================

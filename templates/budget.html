@@ -5,79 +5,219 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-piggy-bank me-2"></i>Budget Manager</h2>
-    <button class="btn btn-primary" onclick="createBudgetFromAverages()">
-        <i class="bi bi-magic me-1"></i>Create from 3-Month Averages
-    </button>
+    <div>
+        <button class="btn btn-outline-light me-2" onclick="document.getElementById('budgetFileInput').click()">
+            <i class="bi bi-upload me-1"></i>Import Budget
+        </button>
+        <button class="btn btn-primary" onclick="createBudgetFromAverages()">
+            <i class="bi bi-magic me-1"></i>Create from 3-Month Averages
+        </button>
+        <input type="file" id="budgetFileInput" accept=".xlsx,.xls,.csv" style="display: none;" onchange="previewBudgetFile(this)">
+    </div>
+</div>
+
+<!-- Budget Import Preview Modal -->
+<div class="modal fade" id="budgetImportModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-spreadsheet me-2"></i>Import Budget</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Budget Name</label>
+                    <input type="text" id="importBudgetName" class="form-control" value="My Budget">
+                </div>
+                <div id="budgetPreviewContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="text-muted mt-2">Parsing budget file...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="importBudget()" id="importBudgetBtn" disabled>
+                    <i class="bi bi-check-lg me-1"></i>Import Budget
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% if budget_status %}
-<!-- Active Budget Status -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="mb-0">
-            <i class="bi bi-bar-chart-line me-2"></i>{{ budget_status.budget_name }} - {{ budget_status.period }}
-        </h5>
-    </div>
-    <div class="card-body">
-        <!-- Summary -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card stat-card">
-                    <div class="card-body text-center">
-                        <div class="stat-label">Total Budgeted</div>
-                        <div class="stat-value">${{ "%.2f"|format(budget_status.total_budgeted) }}</div>
+<!-- Budget Overview Cards -->
+<div class="row g-3 mb-4">
+    {% set remaining = budget_status.total_budgeted - budget_status.total_actual %}
+    {% set percent_used = (budget_status.total_actual / budget_status.total_budgeted * 100) if budget_status.total_budgeted > 0 else 0 %}
+    
+    <div class="col-md-3">
+        <div class="card h-100" style="border-left: 4px solid #6366f1;">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted mb-1 small">Total Budget</p>
+                        <h3 class="mb-0">${{ "%.0f"|format(budget_status.total_budgeted) }}</h3>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card stat-card">
-                    <div class="card-body text-center">
-                        <div class="stat-label">Total Spent</div>
-                        <div class="stat-value {% if budget_status.total_actual > budget_status.total_budgeted %}text-danger{% else %}text-success{% endif %}">
-                            ${{ "%.2f"|format(budget_status.total_actual) }}
-                        </div>
+                    <div class="rounded-circle p-2" style="background: rgba(99, 102, 241, 0.1);">
+                        <i class="bi bi-wallet2 text-primary"></i>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Category Breakdown -->
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Category</th>
-                        <th class="text-end">Budgeted</th>
-                        <th class="text-end">Actual</th>
-                        <th class="text-end">Remaining</th>
-                        <th style="width: 30%">Progress</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in budget_status['items'] %}
-                    <tr>
-                        <td>{{ item.category }}</td>
-                        <td class="text-end">${{ "%.2f"|format(item.budgeted) }}</td>
-                        <td class="text-end">${{ "%.2f"|format(item.actual) }}</td>
-                        <td class="text-end {% if item.variance < 0 %}text-danger{% else %}text-success{% endif %}">
-                            ${{ "%.2f"|format(item.variance) }}
-                        </td>
-                        <td>
-                            <div class="progress" style="height: 24px;">
-                                {% set pct = item.percent_used if item.percent_used <= 100 else 100 %}
-                                <div class="progress-bar {% if item.percent_used > 100 %}bg-danger{% elif item.percent_used > 80 %}bg-warning{% else %}bg-success{% endif %}" 
-                                     style="width: {{ pct }}%">
-                                    {{ "%.0f"|format(item.percent_used) }}%
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100" style="border-left: 4px solid {% if percent_used > 100 %}#ef4444{% elif percent_used > 80 %}#f59e0b{% else %}#10b981{% endif %};">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted mb-1 small">Spent This Month</p>
+                        <h3 class="mb-0 {% if percent_used > 100 %}text-danger{% elif percent_used > 80 %}text-warning{% else %}text-success{% endif %}">
+                            ${{ "%.0f"|format(budget_status.total_actual) }}
+                        </h3>
+                    </div>
+                    <div class="rounded-circle p-2" style="background: rgba(16, 185, 129, 0.1);">
+                        <i class="bi bi-credit-card text-success"></i>
+                    </div>
+                </div>
+                <div class="progress mt-2" style="height: 4px;">
+                    <div class="progress-bar {% if percent_used > 100 %}bg-danger{% elif percent_used > 80 %}bg-warning{% else %}bg-success{% endif %}" 
+                         style="width: {{ [percent_used, 100]|min }}%"></div>
+                </div>
+                <small class="text-muted">{{ "%.0f"|format(percent_used) }}% of budget</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100" style="border-left: 4px solid {% if remaining >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted mb-1 small">Remaining</p>
+                        <h3 class="mb-0 {% if remaining >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if remaining >= 0 %}${{ "%.0f"|format(remaining) }}{% else %}-${{ "%.0f"|format(remaining|abs) }}{% endif %}
+                        </h3>
+                    </div>
+                    <div class="rounded-circle p-2" style="background: rgba(16, 185, 129, 0.1);">
+                        <i class="bi bi-piggy-bank {% if remaining >= 0 %}text-success{% else %}text-danger{% endif %}"></i>
+                    </div>
+                </div>
+                {% if remaining >= 0 %}
+                <small class="text-muted">You're on track!</small>
+                {% else %}
+                <small class="text-danger">Over budget by ${{ "%.0f"|format(remaining|abs) }}</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100" style="border-left: 4px solid #8b5cf6;">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted mb-1 small">Categories</p>
+                        <h3 class="mb-0">{{ budget_status['items']|length }}</h3>
+                    </div>
+                    <div class="rounded-circle p-2" style="background: rgba(139, 92, 246, 0.1);">
+                        <i class="bi bi-grid text-purple"></i>
+                    </div>
+                </div>
+                <small class="text-muted">{{ budget_status.budget_name }}</small>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Budget Health Indicator -->
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                {% if percent_used <= 50 %}
+                <span class="badge bg-success me-2 px-3 py-2"><i class="bi bi-check-circle me-1"></i>Excellent</span>
+                <span class="text-muted">You've used less than half your budget</span>
+                {% elif percent_used <= 80 %}
+                <span class="badge bg-primary me-2 px-3 py-2"><i class="bi bi-graph-up me-1"></i>On Track</span>
+                <span class="text-muted">You're pacing well this month</span>
+                {% elif percent_used <= 100 %}
+                <span class="badge bg-warning me-2 px-3 py-2"><i class="bi bi-exclamation-triangle me-1"></i>Caution</span>
+                <span class="text-muted">Approaching your budget limit</span>
+                {% else %}
+                <span class="badge bg-danger me-2 px-3 py-2"><i class="bi bi-x-circle me-1"></i>Over Budget</span>
+                <span class="text-muted">You've exceeded your planned spending</span>
+                {% endif %}
+            </div>
+            <span class="text-muted">{{ budget_status.period }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Budget Categories by Group -->
+<div class="row g-4 mb-4" id="budget-categories">
+    <!-- This will be populated by JavaScript to group categories -->
+</div>
+
+<!-- Detailed Budget Table (collapsible) -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center" 
+         data-bs-toggle="collapse" data-bs-target="#detailedBudget" 
+         style="cursor: pointer;">
+        <h5 class="mb-0">
+            <i class="bi bi-table me-2"></i>Detailed Budget Breakdown
+        </h5>
+        <i class="bi bi-chevron-down"></i>
+    </div>
+    <div class="collapse show" id="detailedBudget">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="text-end">Budgeted</th>
+                            <th class="text-end">Spent</th>
+                            <th class="text-end">Remaining</th>
+                            <th style="width: 25%">Progress</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in budget_status['items']|sort(attribute='percent_used', reverse=True) %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.category }}</strong>
+                            </td>
+                            <td class="text-end">${{ "%.2f"|format(item.budgeted) }}</td>
+                            <td class="text-end">${{ "%.2f"|format(item.actual) }}</td>
+                            <td class="text-end">
+                                <span class="{% if item.variance < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {% if item.variance >= 0 %}${{ "%.2f"|format(item.variance) }}{% else %}-${{ "%.2f"|format(item.variance|abs) }}{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        {% set pct = item.percent_used if item.percent_used <= 100 else 100 %}
+                                        <div class="progress-bar {% if item.percent_used > 100 %}bg-danger{% elif item.percent_used > 80 %}bg-warning{% else %}bg-success{% endif %}" 
+                                             style="width: {{ pct }}%"></div>
+                                    </div>
+                                    <span class="ms-2 small {% if item.percent_used > 100 %}text-danger{% elif item.percent_used > 80 %}text-warning{% else %}text-muted{% endif %}">
+                                        {{ "%.0f"|format(item.percent_used) }}%
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% else %}
 <!-- No Active Budget -->
 <div class="card">
@@ -85,14 +225,18 @@
         <i class="bi bi-piggy-bank fs-1 text-muted mb-3 d-block"></i>
         <h4>No Active Budget</h4>
         <p class="text-muted">Create a budget to start tracking your spending goals.</p>
-        <button class="btn btn-primary btn-lg" onclick="createBudgetFromAverages()">
-            <i class="bi bi-magic me-1"></i>Create Budget from 3-Month Averages
-        </button>
+        <div class="d-flex justify-content-center gap-2">
+            <button class="btn btn-outline-light" onclick="document.getElementById('budgetFileInput').click()">
+                <i class="bi bi-upload me-1"></i>Import from CSV/Excel
+            </button>
+            <button class="btn btn-primary" onclick="createBudgetFromAverages()">
+                <i class="bi bi-magic me-1"></i>Create from 3-Month Averages
+            </button>
+        </div>
     </div>
 </div>
 {% endif %}
 
-<!-- All Budgets -->
 <!-- Monthly Spending Patterns -->
 <div class="card mt-4">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -102,9 +246,9 @@
         </button>
     </div>
     <div class="card-body">
-        <p class="text-muted mb-3">
+        <p class="text-muted mb-3 small">
             <i class="bi bi-info-circle me-1"></i>
-            Categories marked with <span class="badge bg-primary">Recurring</span> will be prioritized in your budget.
+            Categories marked <span class="badge bg-primary">Recurring</span> are fixed monthly expenses.
             Mark transactions as recurring in the Transactions tab.
         </p>
         <div id="patterns-container">
@@ -112,13 +256,13 @@
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
-                <p class="text-muted mt-2">Loading spending patterns...</p>
             </div>
         </div>
     </div>
 </div>
 
-{% if budgets %}
+{% if budgets and budgets|length > 1 %}
+<!-- All Budgets -->
 <div class="card mt-4">
     <div class="card-header">
         <h5 class="mb-0"><i class="bi bi-collection me-2"></i>All Budgets</h5>
@@ -147,9 +291,6 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="/api/budgets/{{ b.id }}" class="btn btn-sm btn-outline-primary me-1">
-                                <i class="bi bi-eye"></i>
-                            </a>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteBudget({{ b.id }}, '{{ b.name }}')">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -166,8 +307,98 @@
 
 {% block scripts %}
 <script>
-    // Load patterns on page load
-    document.addEventListener('DOMContentLoaded', loadPatterns);
+    document.addEventListener('DOMContentLoaded', function() {
+        loadPatterns();
+        {% if budget_status %}
+        renderCategoryCards();
+        {% endif %}
+    });
+    
+    {% if budget_status %}
+    function renderCategoryCards() {
+        const items = {{ budget_status['items']|tojson|safe }};
+        const container = document.getElementById('budget-categories');
+        
+        // Group items by spending status
+        const overBudget = items.filter(i => i.percent_used > 100);
+        const nearLimit = items.filter(i => i.percent_used > 80 && i.percent_used <= 100);
+        const onTrack = items.filter(i => i.percent_used <= 80);
+        
+        let html = '';
+        
+        // Over Budget Section
+        if (overBudget.length > 0) {
+            html += `
+                <div class="col-md-4">
+                    <div class="card h-100 border-danger">
+                        <div class="card-header bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-exclamation-circle me-2"></i>Over Budget (${overBudget.length})
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush">
+                                ${overBudget.map(item => `
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>${item.category}</span>
+                                        <span class="badge bg-danger">${item.percent_used.toFixed(0)}%</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Near Limit Section
+        if (nearLimit.length > 0) {
+            html += `
+                <div class="col-md-4">
+                    <div class="card h-100 border-warning">
+                        <div class="card-header bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>Near Limit (${nearLimit.length})
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush">
+                                ${nearLimit.map(item => `
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>${item.category}</span>
+                                        <span class="badge bg-warning text-dark">${item.percent_used.toFixed(0)}%</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // On Track Section
+        if (onTrack.length > 0) {
+            html += `
+                <div class="col-md-4">
+                    <div class="card h-100 border-success">
+                        <div class="card-header bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-check-circle me-2"></i>On Track (${onTrack.length})
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush">
+                                ${onTrack.slice(0, 8).map(item => `
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>${item.category}</span>
+                                        <span class="badge bg-success">${item.percent_used.toFixed(0)}%</span>
+                                    </li>
+                                `).join('')}
+                                ${onTrack.length > 8 ? `<li class="list-group-item text-muted text-center">+${onTrack.length - 8} more</li>` : ''}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    }
+    {% endif %}
     
     async function loadPatterns() {
         const container = document.getElementById('patterns-container');
@@ -194,16 +425,16 @@
                 return b[1].average - a[1].average;
             });
             
-            // Get all unique months across all categories
+            // Get all unique months
             const allMonths = new Set();
             for (const [_, data] of sortedCategories) {
                 Object.keys(data.months).forEach(m => allMonths.add(m));
             }
-            const sortedMonths = Array.from(allMonths).sort().reverse().slice(0, 6);
+            const sortedMonths = Array.from(allMonths).sort().reverse().slice(0, 4);
             
             let html = `
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-sm mb-0">
                         <thead>
                             <tr>
                                 <th>Category</th>
@@ -214,50 +445,141 @@
                         <tbody>
             `;
             
-            for (const [category, data] of sortedCategories) {
+            for (const [category, data] of sortedCategories.slice(0, 15)) {
                 const recurringBadge = data.is_recurring 
-                    ? '<span class="badge bg-primary ms-2">Recurring</span>' 
+                    ? '<span class="badge bg-primary ms-1">R</span>' 
                     : '';
                 
                 html += `
                     <tr>
-                        <td>
-                            <strong>${category}</strong>${recurringBadge}
-                            <br><small class="text-muted">${data.months_count} month(s) of data</small>
-                        </td>
-                        <td class="text-end fw-bold">$${data.average.toFixed(2)}</td>
+                        <td><small>${category}${recurringBadge}</small></td>
+                        <td class="text-end"><small class="fw-bold">$${data.average.toFixed(0)}</small></td>
                 `;
                 
                 for (const month of sortedMonths) {
                     const amount = data.months[month] || 0;
-                    const cellClass = amount > 0 ? '' : 'text-muted';
-                    html += `<td class="text-end ${cellClass}">$${amount.toFixed(2)}</td>`;
+                    html += `<td class="text-end"><small class="${amount > 0 ? '' : 'text-muted'}">$${amount.toFixed(0)}</small></td>`;
                 }
                 
                 html += '</tr>';
             }
             
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
+            html += '</tbody></table></div>';
+            
+            if (sortedCategories.length > 15) {
+                html += `<p class="text-muted text-center mt-2 small">Showing top 15 of ${sortedCategories.length} categories</p>`;
+            }
             
             container.innerHTML = html;
             
         } catch (error) {
-            container.innerHTML = `
-                <div class="alert alert-danger">
-                    Error loading patterns: ${error.message}
-                </div>
-            `;
+            container.innerHTML = `<div class="alert alert-danger">Error loading patterns: ${error.message}</div>`;
         }
     }
     
     function formatMonth(monthStr) {
         const [year, month] = monthStr.split('-');
         const date = new Date(year, month - 1);
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        return date.toLocaleDateString('en-US', { month: 'short' });
+    }
+    
+    // Budget Import Functions
+    let selectedBudgetFile = null;
+    const budgetImportModal = new bootstrap.Modal(document.getElementById('budgetImportModal'));
+    
+    async function previewBudgetFile(input) {
+        if (!input.files || !input.files[0]) return;
+        
+        selectedBudgetFile = input.files[0];
+        const previewContent = document.getElementById('budgetPreviewContent');
+        const importBtn = document.getElementById('importBudgetBtn');
+        
+        previewContent.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="text-muted mt-2">Parsing budget file...</p>
+            </div>
+        `;
+        importBtn.disabled = true;
+        budgetImportModal.show();
+        
+        const formData = new FormData();
+        formData.append('file', selectedBudgetFile);
+        
+        try {
+            const response = await fetch('/api/budgets/preview', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) throw new Error(data.error || 'Failed to parse file');
+            
+            let html = `
+                <div class="alert alert-info py-2">
+                    <strong>Total:</strong> $${data.total_budget.toLocaleString('en-US', {minimumFractionDigits: 0})}
+                    <span class="ms-3"><strong>Items:</strong> ${data.all_items.length}</span>
+                </div>
+            `;
+            
+            for (const [sectionName, items] of Object.entries(data.sections)) {
+                if (items.length === 0) continue;
+                const sectionTotal = items.reduce((sum, i) => sum + i.amount, 0);
+                html += `
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-1">${sectionName} <span class="text-muted">($${sectionTotal.toFixed(0)})</span></h6>
+                        <div class="row g-1">
+                `;
+                for (const item of items) {
+                    if (item.amount <= 0) continue;
+                    const badge = item.exists ? '<span class="badge bg-success">✓</span>' : '<span class="badge bg-warning">New</span>';
+                    html += `<div class="col-6"><small>${item.category} ${badge}: <strong>$${item.amount.toFixed(0)}</strong></small></div>`;
+                }
+                html += '</div></div>';
+            }
+            
+            previewContent.innerHTML = html;
+            importBtn.disabled = false;
+            
+        } catch (error) {
+            previewContent.innerHTML = `<div class="alert alert-danger"><strong>Error:</strong> ${error.message}</div>`;
+        }
+        
+        input.value = '';
+    }
+    
+    async function importBudget() {
+        if (!selectedBudgetFile) return;
+        
+        const budgetName = document.getElementById('importBudgetName').value || 'Imported Budget';
+        const importBtn = document.getElementById('importBudgetBtn');
+        
+        importBtn.disabled = true;
+        importBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Importing...';
+        
+        const formData = new FormData();
+        formData.append('file', selectedBudgetFile);
+        formData.append('name', budgetName);
+        
+        try {
+            const response = await fetch('/api/budgets/import', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to import budget');
+            
+            budgetImportModal.hide();
+            alert(`Budget imported!\n\nItems: ${data.items_created}\nNew categories: ${data.categories_created}\nTotal: $${data.total_budget.toLocaleString()}`);
+            location.reload();
+            
+        } catch (error) {
+            alert('Error: ' + error.message);
+            importBtn.disabled = false;
+            importBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Import Budget';
+        }
     }
     
     async function createBudgetFromAverages() {
@@ -268,11 +590,7 @@
             const response = await fetch('/api/budgets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: name,
-                    from_averages: true,
-                    months: 3
-                })
+                body: JSON.stringify({ name: name, from_averages: true, months: 3 })
             });
             
             if (response.ok) {
@@ -282,20 +600,15 @@
                 alert('Error: ' + (data.error || 'Unknown error'));
             }
         } catch (error) {
-            alert('Error creating budget: ' + error.message);
+            alert('Error: ' + error.message);
         }
     }
     
     async function deleteBudget(budgetId, budgetName) {
-        if (!confirm(`Delete budget "${budgetName}"?`)) {
-            return;
-        }
+        if (!confirm(`Delete budget "${budgetName}"?`)) return;
         
         try {
-            const response = await fetch(`/api/budgets/${budgetId}`, {
-                method: 'DELETE'
-            });
-            
+            const response = await fetch(`/api/budgets/${budgetId}`, { method: 'DELETE' });
             if (response.ok) {
                 location.reload();
             } else {
@@ -303,7 +616,7 @@
                 alert('Error: ' + (data.error || 'Unknown error'));
             }
         } catch (error) {
-            alert('Error deleting budget: ' + error.message);
+            alert('Error: ' + error.message);
         }
     }
 </script>
