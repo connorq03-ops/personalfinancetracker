@@ -122,15 +122,17 @@ class DashboardGenerator:
     
     def _get_top_merchants(self, transactions, limit=10):
         """Get top merchants by spending."""
+        from merchant_extractor import extract_merchant_name
+        
         merchant_totals = {}
         
         for t in transactions:
             if t.amount >= 0:
                 continue
             
-            # Extract merchant name (first part of description)
-            desc = t.description.split()[0] if t.description else 'Unknown'
-            merchant_totals[desc] = merchant_totals.get(desc, 0) + abs(t.amount)
+            # Use merchant extractor for clean names
+            merchant = extract_merchant_name(t.description) if t.description else 'Unknown'
+            merchant_totals[merchant] = merchant_totals.get(merchant, 0) + abs(t.amount)
         
         sorted_merchants = sorted(merchant_totals.items(), key=lambda x: x[1], reverse=True)
         

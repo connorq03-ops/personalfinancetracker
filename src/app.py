@@ -57,38 +57,47 @@ def transactions():
     session = get_session()
     try:
         # Get filter parameters
+        show_all = request.args.get('all', type=int, default=0)
         year = request.args.get('year', type=int)
         month = request.args.get('month', type=int)
         category_id = request.args.get('category', type=int)
+        txn_type = request.args.get('type', '')  # 'income' or 'expense'
         search = request.args.get('search', '')
         
         # Get available months first
         available_months = dashboard_gen.get_available_months()
         
-        # Default to most recent month with data, or current month if no data
-        if not year or not month:
-            if available_months:
-                year = available_months[0]['year']
-                month = available_months[0]['month']
-            else:
-                today = date.today()
-                year = today.year
-                month = today.month
-        
         # Build query
         query = session.query(Transaction).filter(Transaction.user_id == 1)
         
-        # Date filter
-        start_date = date(year, month, 1)
-        if month == 12:
-            end_date = date(year + 1, 1, 1)
-        else:
-            end_date = date(year, month + 1, 1)
+        # Date filter (unless showing all)
+        if not show_all:
+            # Default to most recent month with data, or current month if no data
+            if not year or not month:
+                if available_months:
+                    year = available_months[0]['year']
+                    month = available_months[0]['month']
+                else:
+                    today = date.today()
+                    year = today.year
+                    month = today.month
+            
+            start_date = date(year, month, 1)
+            if month == 12:
+                end_date = date(year + 1, 1, 1)
+            else:
+                end_date = date(year, month + 1, 1)
+            
+            query = query.filter(
+                Transaction.date >= start_date,
+                Transaction.date < end_date
+            )
         
-        query = query.filter(
-            Transaction.date >= start_date,
-            Transaction.date < end_date
-        )
+        # Type filter
+        if txn_type == 'income':
+            query = query.filter(Transaction.amount > 0)
+        elif txn_type == 'expense':
+            query = query.filter(Transaction.amount < 0)
         
         # Category filter
         if category_id:
@@ -115,15 +124,23 @@ def transactions():
         # Get categories for filter (alphabetical order)
         categories = session.query(Category).filter_by(user_id=1).order_by(Category.name).all()
         
+        # Handle month_name for display
+        if show_all:
+            month_name = "All Time"
+        else:
+            month_name = date(year, month, 1).strftime('%B')
+        
         return render_template('transactions.html',
                              transactions=transactions_list,
                              categories=categories,
                              summary=summary,
                              year=year,
                              month=month,
-                             month_name=date(year, month, 1).strftime('%B'),
+                             month_name=month_name,
                              category_id=category_id,
+                             txn_type=txn_type,
                              search=search,
+                             show_all=show_all,
                              available_months=available_months)
     finally:
         session.close()
@@ -185,7 +202,7 @@ def upload():
 
 @app.route('/api/transactions/<int:transaction_id>/category', methods=['POST'])
 def update_transaction_category(transaction_id):
-    """Update a transaction's category."""
+    """Update a transaction's category and record for ML training."""
     session = get_session()
     try:
         data = request.get_json()
@@ -195,7 +212,34 @@ def update_transaction_category(transaction_id):
         if not transaction:
             return jsonify({'error': 'Transaction not found'}), 404
         
+        # Get category name for ML training
+        category = session.query(Category).filter_by(id=category_id).first()
+        
         transaction.category_id = category_id
+        session.commit()
+        
+        # Train ML model with this correction (async-friendly)
+        if category and transaction.description:
+            _record_training_data(transaction.description, category.name)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route('/api/transactions/<int:transaction_id>', methods=['DELETE'])
+def delete_transaction(transaction_id):
+    """Delete a transaction."""
+    session = get_session()
+    try:
+        transaction = session.query(Transaction).filter_by(id=transaction_id).first()
+        if not transaction:
+            return jsonify({'error': 'Transaction not found'}), 404
+        
+        session.delete(transaction)
         session.commit()
         
         return jsonify({'success': True})
@@ -204,6 +248,35 @@ def update_transaction_category(transaction_id):
         return jsonify({'error': str(e)}), 500
     finally:
         session.close()
+
+
+def _record_training_data(description, category_name):
+    """Record training data for ML model and retrain if enough samples."""
+    import json
+    training_file = os.path.join(os.path.dirname(__file__), 'training_data.json')
+    
+    # Load existing training data
+    training_data = []
+    if os.path.exists(training_file):
+        try:
+            with open(training_file, 'r') as f:
+                training_data = json.load(f)
+        except:
+            training_data = []
+    
+    # Add new sample
+    training_data.append({'description': description, 'category': category_name})
+    
+    # Save training data
+    with open(training_file, 'w') as f:
+        json.dump(training_data, f)
+    
+    # Retrain if we have enough samples (every 50 corrections)
+    if len(training_data) >= 50 and len(training_data) % 50 == 0:
+        descriptions = [d['description'] for d in training_data]
+        categories = [d['category'] for d in training_data]
+        categorizer.train(descriptions, categories)
+        print(f"ML model retrained with {len(training_data)} samples")
 
 
 @app.route('/api/categories')

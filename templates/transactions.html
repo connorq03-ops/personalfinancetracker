@@ -5,9 +5,12 @@
 {% block content %}
 <!-- Month Navigation -->
 <div class="month-nav mb-4">
+    <a href="?all=1" class="btn btn-outline-light {% if show_all %}active{% endif %}">
+        All Time
+    </a>
     {% for m in available_months %}
     <a href="?year={{ m.year }}&month={{ m.month }}" 
-       class="btn btn-outline-light {% if m.year == year and m.month == month %}active{% endif %}">
+       class="btn btn-outline-light {% if not show_all and m.year == year and m.month == month %}active{% endif %}">
         {{ m.label }}
     </a>
     {% endfor %}
@@ -55,18 +58,31 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" class="row g-3">
+            {% if show_all %}
+            <input type="hidden" name="all" value="1">
+            {% else %}
             <input type="hidden" name="year" value="{{ year }}">
             <input type="hidden" name="month" value="{{ month }}">
+            {% endif %}
             
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Category</label>
                 <select name="category" class="form-select">
                     <option value="">All Categories</option>
                     {% for cat in categories %}
                     <option value="{{ cat.id }}" {% if cat.id == category_id %}selected{% endif %}>
-                        {{ cat.name }} ({{ cat.group }})
+                        {{ cat.name }}
                     </option>
                     {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label">Type</label>
+                <select name="type" class="form-select">
+                    <option value="">All</option>
+                    <option value="income" {% if txn_type == 'income' %}selected{% endif %}>Income</option>
+                    <option value="expense" {% if txn_type == 'expense' %}selected{% endif %}>Expenses</option>
                 </select>
             </div>
             
@@ -76,11 +92,11 @@
                        placeholder="Search descriptions..." value="{{ search }}">
             </div>
             
-            <div class="col-md-4 d-flex align-items-end">
+            <div class="col-md-3 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary me-2">
                     <i class="bi bi-search me-1"></i>Filter
                 </button>
-                <a href="?year={{ year }}&month={{ month }}" class="btn btn-outline-light">
+                <a href="{% if show_all %}?all=1{% else %}?year={{ year }}&month={{ month }}{% endif %}" class="btn btn-outline-light">
                     Clear
                 </a>
             </div>
@@ -106,6 +122,7 @@
                         <th>Description</th>
                         <th>Category</th>
                         <th class="text-end">Amount</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -140,10 +157,15 @@
                                 {% if t.amount >= 0 %}+{% endif %}${{ "%.2f"|format(t.amount|abs) }}
                             </span>
                         </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction({{ t.id }})" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
+                        <td colspan="6" class="text-center py-5 text-muted">
                             <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                             No transactions found for this period
                         </td>
@@ -300,6 +322,27 @@
             }
         } catch (error) {
             alert('Error creating category: ' + error.message);
+        }
+    }
+    
+    async function deleteTransaction(transactionId) {
+        if (!confirm('Delete this transaction?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/transactions/${transactionId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                location.reload();
+            } else {
+                const data = await response.json();
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error deleting transaction: ' + error.message);
         }
     }
 </script>
