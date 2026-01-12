@@ -127,6 +127,9 @@
                         <th>Description</th>
                         <th>Category</th>
                         <th class="text-end">Amount</th>
+                        <th class="text-center" title="Mark as recurring expense for budget planning">
+                            <i class="bi bi-calendar-check"></i>
+                        </th>
                         <th></th>
                     </tr>
                 </thead>
@@ -161,6 +164,15 @@
                             <span class="{% if t.amount >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
                                 {% if t.amount >= 0 %}+{% endif %}${{ "%.2f"|format(t.amount|abs) }}
                             </span>
+                        </td>
+                        <td class="text-center">
+                            <div class="form-check d-flex justify-content-center m-0">
+                                <input class="form-check-input" type="checkbox" 
+                                       id="recurring-{{ t.id }}"
+                                       {% if t.is_recurring %}checked{% endif %}
+                                       onchange="toggleRecurring({{ t.id }}, this.checked)"
+                                       title="Mark as recurring">
+                            </div>
                         </td>
                         <td class="text-center">
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction({{ t.id }})" title="Delete">
@@ -355,6 +367,40 @@
             }
         } catch (error) {
             alert('Error deleting transaction: ' + error.message);
+        }
+    }
+    
+    async function toggleRecurring(transactionId, isRecurring) {
+        try {
+            const response = await fetch(`/api/transactions/${transactionId}/recurring`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_recurring: isRecurring })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Brief visual feedback
+                const checkbox = document.getElementById('recurring-' + transactionId);
+                if (checkbox) {
+                    checkbox.parentElement.style.color = '#10b981';
+                    setTimeout(() => {
+                        checkbox.parentElement.style.color = '';
+                    }, 1000);
+                }
+                console.log('Recurring status updated:', data.message);
+            } else {
+                // Revert checkbox on error
+                const checkbox = document.getElementById('recurring-' + transactionId);
+                if (checkbox) checkbox.checked = !isRecurring;
+                alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            // Revert checkbox on error
+            const checkbox = document.getElementById('recurring-' + transactionId);
+            if (checkbox) checkbox.checked = !isRecurring;
+            alert('Error toggling recurring: ' + error.message);
         }
     }
     

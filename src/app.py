@@ -250,6 +250,38 @@ def delete_transaction(transaction_id):
         session.close()
 
 
+@app.route('/api/transactions/<int:transaction_id>/recurring', methods=['POST'])
+def toggle_recurring(transaction_id):
+    """Toggle the recurring status of a transaction."""
+    session = get_session()
+    try:
+        data = request.get_json() or {}
+        is_recurring = data.get('is_recurring')
+        
+        transaction = session.query(Transaction).filter_by(id=transaction_id).first()
+        if not transaction:
+            return jsonify({'error': 'Transaction not found'}), 404
+        
+        # Toggle or set the recurring status
+        if is_recurring is not None:
+            transaction.is_recurring = bool(is_recurring)
+        else:
+            transaction.is_recurring = not transaction.is_recurring
+        
+        session.commit()
+        
+        return jsonify({
+            'success': True,
+            'is_recurring': transaction.is_recurring,
+            'message': f'Transaction marked as {"recurring" if transaction.is_recurring else "non-recurring"}'
+        })
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
 def _record_training_data(description, category_name):
     """Record training data for ML model and retrain if enough samples."""
     import json
@@ -330,6 +362,22 @@ def get_category_averages():
     months = request.args.get('months', 3, type=int)
     averages = dashboard_gen.get_category_averages(months)
     return jsonify(averages)
+
+
+@app.route('/api/dashboard/patterns')
+def get_all_patterns():
+    """Get monthly spending patterns for all categories."""
+    patterns = dashboard_gen.get_all_category_patterns()
+    return jsonify(patterns)
+
+
+@app.route('/api/dashboard/patterns/<category_name>')
+def get_category_pattern(category_name):
+    """Get monthly spending pattern for a specific category."""
+    pattern = dashboard_gen.get_category_monthly_pattern(category_name)
+    if not pattern:
+        return jsonify({'error': 'Category not found'}), 404
+    return jsonify(pattern)
 
 
 # =============================================================================

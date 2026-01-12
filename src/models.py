@@ -56,6 +56,7 @@ class Transaction(Base):
     amount = Column(Float, nullable=False)  # Negative = expense, Positive = income
     source = Column(String(100))  # Bank name
     raw_category = Column(String(100))  # Original category from bank
+    is_recurring = Column(Boolean, default=False)  # User-marked recurring transaction
     created_at = Column(DateTime, default=datetime.utcnow)
     
     user = relationship('User', back_populates='transactions')

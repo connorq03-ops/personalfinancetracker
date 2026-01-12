@@ -213,8 +213,27 @@ class DashboardGenerator:
         finally:
             session.close()
     
+    # Known recurring/fixed expense keywords for automatic detection
+    RECURRING_KEYWORDS = {
+        'rent', 'mortgage', 'truist', 'housing', 'utilities', 'electric', 'water', 'gas',
+        'internet', 'wifi', 'cable', 'phone', 'mobile', 'cell',
+        'spotify', 'netflix', 'hulu', 'hbo', 'disney', 'amazon prime', 'prime',
+        'youtube', 'paramount', 'apple', 'microsoft', 'chatgpt', 'canva', 'adobe',
+        'insurance', 'ymca', 'gym', 'fitness', 'membership',
+        'car', 'auto', 'vehicle', 'tolls', 'parking',
+        'loan', 'payment', 'sierra', 'hair', 'beauty', 'grooming', 'subscriptions'
+    }
+    
+    def _is_recurring_category(self, category_name):
+        """Check if category matches known recurring expense patterns."""
+        cat_lower = category_name.lower()
+        for keyword in self.RECURRING_KEYWORDS:
+            if keyword in cat_lower:
+                return True
+        return False
+    
     def get_category_averages(self, months=3, user_id=1):
-        """Get average spending by category over the last N months."""
+        """Get average spending by category over the last N months with recurring status."""
         session = get_session()
         
         try:
@@ -226,6 +245,16 @@ class DashboardGenerator:
                     start_date = date(start_date.year - 1, 12, 1)
                 else:
                     start_date = date(start_date.year, start_date.month - 1, 1)
+            
+            # Get user-marked recurring categories
+            user_marked_recurring = set()
+            recurring_transactions = session.query(Transaction).filter(
+                Transaction.user_id == user_id,
+                Transaction.is_recurring == True
+            ).all()
+            for t in recurring_transactions:
+                if t.category and t.category.name:
+                    user_marked_recurring.add(t.category.name)
             
             # Get transactions
             transactions = session.query(Transaction).filter(
@@ -244,9 +273,135 @@ class DashboardGenerator:
                 cat_name = t.category.name if t.category else 'Uncategorized'
                 category_totals[cat_name] = category_totals.get(cat_name, 0) + abs(t.amount)
             
-            # Calculate averages
-            averages = {name: round(total / months, 2) for name, total in category_totals.items()}
+            # Build result with recurring status
+            result = {}
+            for name, total in category_totals.items():
+                is_recurring = name in user_marked_recurring or self._is_recurring_category(name)
+                result[name] = {
+                    'average': round(total / months, 2),
+                    'is_recurring': is_recurring,
+                    'user_marked': name in user_marked_recurring
+                }
             
-            return averages
+            return result
+        finally:
+            session.close()
+    
+    def get_category_monthly_pattern(self, category_name, user_id=1):
+        """Get monthly spending pattern for a specific category."""
+        session = get_session()
+        
+        try:
+            # Find category
+            category = session.query(Category).filter(
+                Category.name == category_name,
+                Category.user_id == user_id
+            ).first()
+            
+            if not category:
+                return None
+            
+            # Get all transactions for this category
+            transactions = session.query(Transaction).filter(
+                Transaction.user_id == user_id,
+                Transaction.category_id == category.id,
+                Transaction.amount < 0
+            ).order_by(Transaction.date.desc()).all()
+            
+            # Group by month
+            monthly_data = {}
+            for t in transactions:
+                month_key = t.date.strftime('%Y-%m')
+                if month_key not in monthly_data:
+                    monthly_data[month_key] = {'total': 0, 'count': 0, 'transactions': []}
+                monthly_data[month_key]['total'] += abs(t.amount)
+                monthly_data[month_key]['count'] += 1
+                monthly_data[month_key]['transactions'].append({
+                    'date': t.date.isoformat(),
+                    'description': t.description,
+                    'amount': abs(t.amount),
+                    'is_recurring': t.is_recurring
+                })
+            
+            # Calculate statistics
+            if monthly_data:
+                totals = [m['total'] for m in monthly_data.values()]
+                avg = sum(totals) / len(totals)
+                min_val = min(totals)
+                max_val = max(totals)
+            else:
+                avg = min_val = max_val = 0
+            
+            # Check if user marked any as recurring
+            has_recurring = any(
+                t.is_recurring for t in transactions
+            )
+            
+            return {
+                'category': category_name,
+                'months': monthly_data,
+                'statistics': {
+                    'average': round(avg, 2),
+                    'min': round(min_val, 2),
+                    'max': round(max_val, 2),
+                    'months_with_data': len(monthly_data)
+                },
+                'is_recurring': has_recurring
+            }
+        finally:
+            session.close()
+    
+    def get_all_category_patterns(self, user_id=1):
+        """Get monthly spending patterns for all categories."""
+        session = get_session()
+        
+        try:
+            excluded_ids = self._get_excluded_category_ids(session)
+            
+            # Get all expense transactions grouped by category and month
+            transactions = session.query(Transaction).filter(
+                Transaction.user_id == user_id,
+                Transaction.amount < 0
+            ).all()
+            
+            # Build category patterns
+            category_data = {}
+            for t in transactions:
+                if t.category_id in excluded_ids:
+                    continue
+                
+                cat_name = t.category.name if t.category else 'Uncategorized'
+                month_key = t.date.strftime('%Y-%m')
+                
+                if cat_name not in category_data:
+                    category_data[cat_name] = {
+                        'months': {},
+                        'has_recurring': False
+                    }
+                
+                if month_key not in category_data[cat_name]['months']:
+                    category_data[cat_name]['months'][month_key] = 0
+                
+                category_data[cat_name]['months'][month_key] += abs(t.amount)
+                
+                if t.is_recurring:
+                    category_data[cat_name]['has_recurring'] = True
+            
+            # Calculate statistics for each category
+            result = {}
+            for cat_name, data in category_data.items():
+                monthly_totals = list(data['months'].values())
+                if monthly_totals:
+                    avg = sum(monthly_totals) / len(monthly_totals)
+                    result[cat_name] = {
+                        'months': data['months'],
+                        'average': round(avg, 2),
+                        'min': round(min(monthly_totals), 2),
+                        'max': round(max(monthly_totals), 2),
+                        'months_count': len(monthly_totals),
+                        'is_recurring': data['has_recurring'] or self._is_recurring_category(cat_name)
+                    }
+            
+            return result
         finally:
             session.close()
