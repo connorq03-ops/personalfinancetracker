@@ -58,7 +58,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <p class="text-muted mb-1 small">Total Budget</p>
-                        <h3 class="mb-0">${{ "%.0f"|format(budget_status.total_budgeted) }}</h3>
+                        <h3 class="mb-0">{{ budget_status.total_budgeted|currency }}</h3>
                     </div>
                     <div class="rounded-circle p-2" style="background: rgba(99, 102, 241, 0.1);">
                         <i class="bi bi-wallet2 text-primary"></i>
@@ -75,7 +75,7 @@
                     <div>
                         <p class="text-muted mb-1 small">Spent This Month</p>
                         <h3 class="mb-0 {% if percent_used > 100 %}text-danger{% elif percent_used > 80 %}text-warning{% else %}text-success{% endif %}">
-                            ${{ "%.0f"|format(budget_status.total_actual) }}
+                            {{ budget_status.total_actual|currency }}
                         </h3>
                     </div>
                     <div class="rounded-circle p-2" style="background: rgba(16, 185, 129, 0.1);">
@@ -98,7 +98,7 @@
                     <div>
                         <p class="text-muted mb-1 small">Remaining</p>
                         <h3 class="mb-0 {% if remaining >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {% if remaining >= 0 %}${{ "%.0f"|format(remaining) }}{% else %}-${{ "%.0f"|format(remaining|abs) }}{% endif %}
+                            {{ remaining|currency }}
                         </h3>
                     </div>
                     <div class="rounded-circle p-2" style="background: rgba(16, 185, 129, 0.1);">
@@ -108,7 +108,7 @@
                 {% if remaining >= 0 %}
                 <small class="text-muted">You're on track!</small>
                 {% else %}
-                <small class="text-danger">Over budget by ${{ "%.0f"|format(remaining|abs) }}</small>
+                <small class="text-danger">Over budget by {{ remaining|abs|currency }}</small>
                 {% endif %}
             </div>
         </div>
@@ -156,9 +156,70 @@
     </div>
 </div>
 
-<!-- Budget Categories by Group -->
-<div class="row g-4 mb-4" id="budget-categories">
-    <!-- This will be populated by JavaScript to group categories -->
+<!-- Budget Alerts -->
+{% set over_budget_items = budget_status['items']|selectattr('percent_used', 'gt', 100)|list %}
+{% set near_limit_items = budget_status['items']|selectattr('percent_used', 'gt', 80)|rejectattr('percent_used', 'gt', 100)|list %}
+{% if over_budget_items or near_limit_items %}
+<div class="card mb-4 border-warning">
+    <div class="card-header bg-transparent">
+        <h5 class="mb-0"><i class="bi bi-bell-fill text-warning me-2"></i>Budget Alerts</h5>
+    </div>
+    <div class="card-body py-2">
+        {% for item in over_budget_items %}
+        <div class="alert alert-danger py-2 mb-2 d-flex align-items-center justify-content-between">
+            <div>
+                <i class="bi bi-exclamation-octagon-fill me-2"></i>
+                <strong>{{ item.category }}</strong> is over budget by {{ (item.actual - item.budgeted)|currency }}
+            </div>
+            <span class="badge bg-danger">{{ "%.0f"|format(item.percent_used) }}% used</span>
+        </div>
+        {% endfor %}
+        {% for item in near_limit_items %}
+        <div class="alert alert-warning py-2 mb-2 d-flex align-items-center justify-content-between">
+            <div>
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>{{ item.category }}</strong> is approaching limit - only {{ (item.budgeted - item.actual)|currency }} remaining
+            </div>
+            <span class="badge bg-warning text-dark">{{ "%.0f"|format(item.percent_used) }}% used</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Category Search & Filter -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="categorySearch" placeholder="Search categories..." onkeyup="filterCategories()">
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-light active" onclick="filterByStatus('all', this)">
+                        All <span class="badge bg-secondary ms-1" id="count-all">0</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="filterByStatus('over', this)">
+                        <i class="bi bi-exclamation-circle"></i> Over <span class="badge bg-danger ms-1" id="count-over">0</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" onclick="filterByStatus('near', this)">
+                        <i class="bi bi-exclamation-triangle"></i> Near <span class="badge bg-warning text-dark ms-1" id="count-near">0</span>
+                    </button>
+                    <button type="button" class="btn btn-outline-success" onclick="filterByStatus('on-track', this)">
+                        <i class="bi bi-check-circle"></i> On Track <span class="badge bg-success ms-1" id="count-track">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Budget Categories Grid -->
+<div class="row g-3 mb-4" id="budget-categories">
+    <!-- Populated by JavaScript -->
 </div>
 
 <!-- Detailed Budget Table (collapsible) -->
@@ -181,20 +242,28 @@
                             <th class="text-end">Budgeted</th>
                             <th class="text-end">Spent</th>
                             <th class="text-end">Remaining</th>
-                            <th style="width: 25%">Progress</th>
+                            <th style="width: 20%">Progress</th>
+                            <th class="text-center" style="width: 60px;">Edit</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in budget_status['items']|sort(attribute='percent_used', reverse=True) %}
-                        <tr>
+                        <tr data-item-id="{{ item.id }}">
                             <td>
                                 <strong>{{ item.category }}</strong>
                             </td>
-                            <td class="text-end">${{ "%.2f"|format(item.budgeted) }}</td>
-                            <td class="text-end">${{ "%.2f"|format(item.actual) }}</td>
+                            <td class="text-end">
+                                <span class="budget-display">{{ item.budgeted|currency }}</span>
+                                <div class="budget-edit d-none">
+                                    <input type="number" class="form-control form-control-sm" 
+                                           value="{{ item.budgeted }}" step="0.01" min="0"
+                                           style="width: 100px; display: inline-block;">
+                                </div>
+                            </td>
+                            <td class="text-end">{{ item.actual|currency }}</td>
                             <td class="text-end">
                                 <span class="{% if item.variance < 0 %}text-danger{% else %}text-success{% endif %}">
-                                    {% if item.variance >= 0 %}${{ "%.2f"|format(item.variance) }}{% else %}-${{ "%.2f"|format(item.variance|abs) }}{% endif %}
+                                    {{ item.variance|currency }}
                                 </span>
                             </td>
                             <td>
@@ -208,6 +277,14 @@
                                         {{ "%.0f"|format(item.percent_used) }}%
                                     </span>
                                 </div>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-light edit-btn" onclick="toggleEdit(this, {{ item.id }})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-success save-btn d-none" onclick="saveBudgetItem(this, {{ item.id }})">
+                                    <i class="bi bi-check"></i>
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -236,6 +313,81 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Savings Goals -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-bullseye me-2"></i>Savings Goals</h5>
+        <button class="btn btn-sm btn-primary" onclick="showAddGoalModal()">
+            <i class="bi bi-plus-lg me-1"></i>Add Goal
+        </button>
+    </div>
+    <div class="card-body">
+        <div id="savings-goals-container">
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Savings Goal Modal -->
+<div class="modal fade" id="savingsGoalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="savingsGoalModalTitle">Add Savings Goal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="goalId">
+                <div class="mb-3">
+                    <label class="form-label">Goal Name</label>
+                    <input type="text" class="form-control" id="goalName" placeholder="e.g., Emergency Fund, Vacation">
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label">Target Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="goalTarget" min="0" step="100">
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">Current Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="goalCurrent" min="0" step="100" value="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Target Date (optional)</label>
+                    <input type="date" class="form-control" id="goalDate">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Color</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="goalColor" id="colorPrimary" value="primary" checked>
+                        <label class="btn btn-outline-primary" for="colorPrimary">Blue</label>
+                        <input type="radio" class="btn-check" name="goalColor" id="colorSuccess" value="success">
+                        <label class="btn btn-outline-success" for="colorSuccess">Green</label>
+                        <input type="radio" class="btn-check" name="goalColor" id="colorWarning" value="warning">
+                        <label class="btn btn-outline-warning" for="colorWarning">Yellow</label>
+                        <input type="radio" class="btn-check" name="goalColor" id="colorDanger" value="danger">
+                        <label class="btn btn-outline-danger" for="colorDanger">Red</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveSavingsGoal()">Save Goal</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Monthly Spending Patterns -->
 <div class="card mt-4">
@@ -315,90 +467,139 @@
     });
     
     {% if budget_status %}
+    let allItems = {{ budget_status['items']|tojson|safe }};
+    let currentFilter = 'all';
+    
     function renderCategoryCards() {
-        const items = {{ budget_status['items']|tojson|safe }};
         const container = document.getElementById('budget-categories');
+        const searchTerm = document.getElementById('categorySearch').value.toLowerCase();
         
-        // Group items by spending status
-        const overBudget = items.filter(i => i.percent_used > 100);
-        const nearLimit = items.filter(i => i.percent_used > 80 && i.percent_used <= 100);
-        const onTrack = items.filter(i => i.percent_used <= 80);
+        // Filter by search and status
+        let filtered = allItems.filter(item => {
+            const matchesSearch = item.category.toLowerCase().includes(searchTerm);
+            if (!matchesSearch) return false;
+            
+            if (currentFilter === 'all') return true;
+            if (currentFilter === 'over') return item.percent_used > 100;
+            if (currentFilter === 'near') return item.percent_used > 80 && item.percent_used <= 100;
+            if (currentFilter === 'on-track') return item.percent_used <= 80;
+            return true;
+        });
         
+        // Update counts
+        const overCount = allItems.filter(i => i.percent_used > 100).length;
+        const nearCount = allItems.filter(i => i.percent_used > 80 && i.percent_used <= 100).length;
+        const trackCount = allItems.filter(i => i.percent_used <= 80).length;
+        
+        document.getElementById('count-all').textContent = allItems.length;
+        document.getElementById('count-over').textContent = overCount;
+        document.getElementById('count-near').textContent = nearCount;
+        document.getElementById('count-track').textContent = trackCount;
+        
+        // Sort: over budget first, then by percent used descending
+        filtered.sort((a, b) => b.percent_used - a.percent_used);
+        
+        // Render cards
         let html = '';
-        
-        // Over Budget Section
-        if (overBudget.length > 0) {
+        for (const item of filtered) {
+            const status = item.percent_used > 100 ? 'over' : (item.percent_used > 80 ? 'near' : 'track');
+            const borderColor = status === 'over' ? 'danger' : (status === 'near' ? 'warning' : 'success');
+            const bgColor = status === 'over' ? 'danger' : (status === 'near' ? 'warning' : 'success');
+            const textColor = status === 'near' ? 'text-dark' : '';
+            
+            const remaining = item.budgeted - item.actual;
+            const remainingText = remaining >= 0 ? `(${Math.abs(remaining).toFixed(0)}) left` : `(${Math.abs(remaining).toFixed(0)}) over`;
+            const remainingClass = remaining >= 0 ? 'text-success' : 'text-danger';
+            
             html += `
-                <div class="col-md-4">
-                    <div class="card h-100 border-danger">
-                        <div class="card-header bg-danger bg-opacity-10 text-danger">
-                            <i class="bi bi-exclamation-circle me-2"></i>Over Budget (${overBudget.length})
-                        </div>
-                        <div class="card-body p-0">
-                            <ul class="list-group list-group-flush">
-                                ${overBudget.map(item => `
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>${item.category}</span>
-                                        <span class="badge bg-danger">${item.percent_used.toFixed(0)}%</span>
-                                    </li>
-                                `).join('')}
-                            </ul>
+                <div class="col-6 col-md-4 col-lg-3 category-card" data-status="${status}">
+                    <div class="card h-100" style="border-left: 3px solid var(--bs-${borderColor});">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <strong class="small">${item.category}</strong>
+                                <span class="badge bg-${bgColor} ${textColor}">${item.percent_used.toFixed(0)}%</span>
+                            </div>
+                            <div class="progress mb-1" style="height: 6px;">
+                                <div class="progress-bar bg-${bgColor}" style="width: ${Math.min(item.percent_used, 100)}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">${item.actual >= 0 ? '$' + item.actual.toFixed(0) : '($' + Math.abs(item.actual).toFixed(0) + ')'} / $${item.budgeted.toFixed(0)}</span>
+                                <span class="${remainingClass}">${remainingText}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
         
-        // Near Limit Section
-        if (nearLimit.length > 0) {
-            html += `
-                <div class="col-md-4">
-                    <div class="card h-100 border-warning">
-                        <div class="card-header bg-warning bg-opacity-10 text-warning">
-                            <i class="bi bi-exclamation-triangle me-2"></i>Near Limit (${nearLimit.length})
-                        </div>
-                        <div class="card-body p-0">
-                            <ul class="list-group list-group-flush">
-                                ${nearLimit.map(item => `
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>${item.category}</span>
-                                        <span class="badge bg-warning text-dark">${item.percent_used.toFixed(0)}%</span>
-                                    </li>
-                                `).join('')}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // On Track Section
-        if (onTrack.length > 0) {
-            html += `
-                <div class="col-md-4">
-                    <div class="card h-100 border-success">
-                        <div class="card-header bg-success bg-opacity-10 text-success">
-                            <i class="bi bi-check-circle me-2"></i>On Track (${onTrack.length})
-                        </div>
-                        <div class="card-body p-0">
-                            <ul class="list-group list-group-flush">
-                                ${onTrack.slice(0, 8).map(item => `
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>${item.category}</span>
-                                        <span class="badge bg-success">${item.percent_used.toFixed(0)}%</span>
-                                    </li>
-                                `).join('')}
-                                ${onTrack.length > 8 ? `<li class="list-group-item text-muted text-center">+${onTrack.length - 8} more</li>` : ''}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            `;
+        if (filtered.length === 0) {
+            html = '<div class="col-12 text-center text-muted py-4">No categories match your filter</div>';
         }
         
         container.innerHTML = html;
     }
+    
+    function filterCategories() {
+        renderCategoryCards();
+    }
+    
+    function filterByStatus(status, btn) {
+        currentFilter = status;
+        
+        // Update active button
+        document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        renderCategoryCards();
+    }
     {% endif %}
+    
+    // Budget editing functions
+    function toggleEdit(btn, itemId) {
+        const row = btn.closest('tr');
+        const display = row.querySelector('.budget-display');
+        const edit = row.querySelector('.budget-edit');
+        const editBtn = row.querySelector('.edit-btn');
+        const saveBtn = row.querySelector('.save-btn');
+        
+        display.classList.add('d-none');
+        edit.classList.remove('d-none');
+        editBtn.classList.add('d-none');
+        saveBtn.classList.remove('d-none');
+        
+        // Focus the input
+        edit.querySelector('input').focus();
+    }
+    
+    async function saveBudgetItem(btn, itemId) {
+        const row = btn.closest('tr');
+        const input = row.querySelector('.budget-edit input');
+        const newAmount = parseFloat(input.value);
+        
+        if (isNaN(newAmount) || newAmount < 0) {
+            alert('Please enter a valid amount');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/budgets/items/${itemId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: newAmount })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Reload the page to show updated values
+                location.reload();
+            } else {
+                alert('Error updating budget: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error updating budget: ' + error.message);
+        }
+    }
     
     async function loadPatterns() {
         const container = document.getElementById('patterns-container');
@@ -614,6 +815,195 @@
             } else {
                 const data = await response.json();
                 alert('Error: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+    
+    // Savings Goals Functions
+    const savingsGoalModal = new bootstrap.Modal(document.getElementById('savingsGoalModal'));
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        loadSavingsGoals();
+    });
+    
+    async function loadSavingsGoals() {
+        const container = document.getElementById('savings-goals-container');
+        
+        try {
+            const response = await fetch('/api/savings-goals');
+            const goals = await response.json();
+            
+            if (goals.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-bullseye fs-1 d-block mb-2"></i>
+                        <p>No savings goals yet. Create one to start tracking!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div class="row g-3">';
+            for (const goal of goals) {
+                const pct = goal.percent_complete;
+                const remaining = goal.target_amount - goal.current_amount;
+                const progressColor = goal.is_completed ? 'success' : goal.color;
+                
+                html += `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 ${goal.is_completed ? 'border-success' : ''}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="mb-0">
+                                        <i class="bi ${goal.icon} text-${goal.color} me-1"></i>
+                                        ${goal.name}
+                                    </h6>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-link text-muted p-0" data-bs-toggle="dropdown">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li><a class="dropdown-item" href="#" onclick="editGoal(${goal.id}); return false;"><i class="bi bi-pencil me-2"></i>Edit</a></li>
+                                            <li><a class="dropdown-item" href="#" onclick="addToGoal(${goal.id}); return false;"><i class="bi bi-plus-circle me-2"></i>Add Money</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteGoal(${goal.id}); return false;"><i class="bi bi-trash me-2"></i>Delete</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="progress mb-2" style="height: 10px;">
+                                    <div class="progress-bar bg-${progressColor}" style="width: ${Math.min(pct, 100)}%"></div>
+                                </div>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-${progressColor} fw-bold">\$${goal.current_amount.toLocaleString()}</span>
+                                    <span class="text-muted">of \$${goal.target_amount.toLocaleString()}</span>
+                                </div>
+                                ${goal.is_completed ? 
+                                    '<div class="text-center mt-2"><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Goal Reached!</span></div>' :
+                                    `<div class="text-center mt-2 small text-muted">\$${remaining.toLocaleString()} to go (${pct.toFixed(0)}%)</div>`
+                                }
+                                ${goal.target_date ? `<div class="text-center small text-muted"><i class="bi bi-calendar me-1"></i>Target: ${goal.target_date}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            container.innerHTML = html;
+            
+        } catch (error) {
+            container.innerHTML = `<div class="alert alert-danger">Error loading goals: ${error.message}</div>`;
+        }
+    }
+    
+    function showAddGoalModal() {
+        document.getElementById('goalId').value = '';
+        document.getElementById('goalName').value = '';
+        document.getElementById('goalTarget').value = '';
+        document.getElementById('goalCurrent').value = '0';
+        document.getElementById('goalDate').value = '';
+        document.getElementById('colorPrimary').checked = true;
+        document.getElementById('savingsGoalModalTitle').textContent = 'Add Savings Goal';
+        savingsGoalModal.show();
+    }
+    
+    async function editGoal(goalId) {
+        try {
+            const response = await fetch('/api/savings-goals');
+            const goals = await response.json();
+            const goal = goals.find(g => g.id === goalId);
+            
+            if (!goal) return;
+            
+            document.getElementById('goalId').value = goal.id;
+            document.getElementById('goalName').value = goal.name;
+            document.getElementById('goalTarget').value = goal.target_amount;
+            document.getElementById('goalCurrent').value = goal.current_amount;
+            document.getElementById('goalDate').value = goal.target_date || '';
+            document.querySelector(`input[name="goalColor"][value="${goal.color}"]`).checked = true;
+            document.getElementById('savingsGoalModalTitle').textContent = 'Edit Savings Goal';
+            savingsGoalModal.show();
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+    
+    async function saveSavingsGoal() {
+        const goalId = document.getElementById('goalId').value;
+        const data = {
+            name: document.getElementById('goalName').value,
+            target_amount: parseFloat(document.getElementById('goalTarget').value),
+            current_amount: parseFloat(document.getElementById('goalCurrent').value) || 0,
+            target_date: document.getElementById('goalDate').value || null,
+            color: document.querySelector('input[name="goalColor"]:checked').value
+        };
+        
+        if (!data.name || !data.target_amount) {
+            alert('Please enter a name and target amount');
+            return;
+        }
+        
+        try {
+            const url = goalId ? `/api/savings-goals/${goalId}` : '/api/savings-goals';
+            const method = goalId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                savingsGoalModal.hide();
+                loadSavingsGoals();
+            } else {
+                const result = await response.json();
+                alert('Error: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+    
+    async function addToGoal(goalId) {
+        const amount = prompt('Enter amount to add:');
+        if (!amount) return;
+        
+        const numAmount = parseFloat(amount);
+        if (isNaN(numAmount) || numAmount <= 0) {
+            alert('Please enter a valid positive amount');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/savings-goals/${goalId}/add`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount: numAmount })
+            });
+            
+            if (response.ok) {
+                loadSavingsGoals();
+            } else {
+                const result = await response.json();
+                alert('Error: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+    
+    async function deleteGoal(goalId) {
+        if (!confirm('Delete this savings goal?')) return;
+        
+        try {
+            const response = await fetch(`/api/savings-goals/${goalId}`, { method: 'DELETE' });
+            if (response.ok) {
+                loadSavingsGoals();
+            } else {
+                const result = await response.json();
+                alert('Error: ' + (result.error || 'Unknown error'));
             }
         } catch (error) {
             alert('Error: ' + error.message);

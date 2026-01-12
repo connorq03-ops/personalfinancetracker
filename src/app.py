@@ -40,6 +40,22 @@ categorizer = get_categorizer()
 # Register Jinja2 filters
 merchant_extractor.init_app(app)
 
+# Custom filter for formatting currency with parentheses for negatives
+@app.template_filter('currency')
+def currency_format(value):
+    """Format currency value with parentheses for negative numbers."""
+    if value is None:
+        return "$0.00"
+    
+    try:
+        value = float(value)
+        if value < 0:
+            return f"(${abs(value):.2f})"
+        else:
+            return f"${value:.2f}"
+    except (ValueError, TypeError):
+        return "$0.00"
+
 
 # =============================================================================
 # ROUTES - Pages
@@ -451,6 +467,34 @@ def delete_budget(budget_id):
         session.close()
 
 
+@app.route('/api/budgets/items/<int:item_id>', methods=['PUT'])
+def update_budget_item(item_id):
+    """Update a budget item amount."""
+    from models import BudgetItem
+    session = get_session()
+    try:
+        data = request.get_json()
+        item = session.query(BudgetItem).filter_by(id=item_id).first()
+        
+        if not item:
+            return jsonify({'error': 'Budget item not found'}), 404
+        
+        if 'amount' in data:
+            item.budgeted_amount = float(data['amount'])
+        
+        session.commit()
+        return jsonify({
+            'success': True,
+            'id': item.id,
+            'budgeted_amount': item.budgeted_amount
+        })
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
 @app.route('/api/budgets/import', methods=['POST'])
 def import_budget():
     """Import a budget from an Excel or CSV file."""
@@ -579,6 +623,146 @@ def preview_budget_import():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# =============================================================================
+# API - Savings Goals
+# =============================================================================
+
+@app.route('/api/savings-goals')
+def get_savings_goals():
+    """Get all savings goals."""
+    from models import SavingsGoal
+    session = get_session()
+    try:
+        goals = session.query(SavingsGoal).filter_by(user_id=1).order_by(SavingsGoal.created_at.desc()).all()
+        return jsonify([g.to_dict() for g in goals])
+    finally:
+        session.close()
+
+
+@app.route('/api/savings-goals', methods=['POST'])
+def create_savings_goal():
+    """Create a new savings goal."""
+    from models import SavingsGoal
+    from datetime import datetime
+    
+    session = get_session()
+    try:
+        data = request.get_json()
+        
+        target_date = None
+        if data.get('target_date'):
+            target_date = datetime.strptime(data['target_date'], '%Y-%m-%d').date()
+        
+        goal = SavingsGoal(
+            user_id=1,
+            name=data['name'],
+            target_amount=float(data['target_amount']),
+            current_amount=float(data.get('current_amount', 0)),
+            target_date=target_date,
+            icon=data.get('icon', 'bi-piggy-bank'),
+            color=data.get('color', 'primary')
+        )
+        session.add(goal)
+        session.commit()
+        
+        return jsonify(goal.to_dict())
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route('/api/savings-goals/<int:goal_id>', methods=['PUT'])
+def update_savings_goal(goal_id):
+    """Update a savings goal."""
+    from models import SavingsGoal
+    from datetime import datetime
+    
+    session = get_session()
+    try:
+        data = request.get_json()
+        goal = session.query(SavingsGoal).filter_by(id=goal_id, user_id=1).first()
+        
+        if not goal:
+            return jsonify({'error': 'Goal not found'}), 404
+        
+        if 'name' in data:
+            goal.name = data['name']
+        if 'target_amount' in data:
+            goal.target_amount = float(data['target_amount'])
+        if 'current_amount' in data:
+            goal.current_amount = float(data['current_amount'])
+            # Check if goal is completed
+            if goal.current_amount >= goal.target_amount:
+                goal.is_completed = True
+        if 'target_date' in data:
+            goal.target_date = datetime.strptime(data['target_date'], '%Y-%m-%d').date() if data['target_date'] else None
+        if 'icon' in data:
+            goal.icon = data['icon']
+        if 'color' in data:
+            goal.color = data['color']
+        
+        session.commit()
+        return jsonify(goal.to_dict())
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route('/api/savings-goals/<int:goal_id>', methods=['DELETE'])
+def delete_savings_goal(goal_id):
+    """Delete a savings goal."""
+    from models import SavingsGoal
+    
+    session = get_session()
+    try:
+        goal = session.query(SavingsGoal).filter_by(id=goal_id, user_id=1).first()
+        
+        if not goal:
+            return jsonify({'error': 'Goal not found'}), 404
+        
+        session.delete(goal)
+        session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
+
+
+@app.route('/api/savings-goals/<int:goal_id>/add', methods=['POST'])
+def add_to_savings_goal(goal_id):
+    """Add money to a savings goal."""
+    from models import SavingsGoal
+    
+    session = get_session()
+    try:
+        data = request.get_json()
+        goal = session.query(SavingsGoal).filter_by(id=goal_id, user_id=1).first()
+        
+        if not goal:
+            return jsonify({'error': 'Goal not found'}), 404
+        
+        amount = float(data.get('amount', 0))
+        goal.current_amount += amount
+        
+        # Check if goal is completed
+        if goal.current_amount >= goal.target_amount:
+            goal.is_completed = True
+        
+        session.commit()
+        return jsonify(goal.to_dict())
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        session.close()
 
 
 # =============================================================================

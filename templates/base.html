@@ -55,5 +55,11 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% block scripts %}{% endblock %}
+<!-- Easter Egg - Only visible in overscroll -->
+<div class="easter-egg-overscroll">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span>You have ventured to the great beyond, turn back now or face dire consequences</span>
+    <i class="bi bi-exclamation-triangle-fill"></i>
+</div>
 </body>
 </html>

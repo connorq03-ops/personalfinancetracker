@@ -166,6 +166,8 @@ class BudgetManager:
                 percent_used = (actual / budgeted * 100) if budgeted > 0 else 0
                 
                 items_status.append({
+                    'id': item.id,
+                    'category_id': item.category_id,
                     'category': item.category.name if item.category else 'Unknown',
                     'budgeted': round(budgeted, 2),
                     'actual': round(actual, 2),

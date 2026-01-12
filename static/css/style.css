@@ -1,20 +1,25 @@
 /* Personal Finance Tracker - Custom Styles */
 
 :root {
-    --primary: #6366f1;
-    --secondary: #06b6d4;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --purple: #8b5cf6;
+    --primary: #818cf8;
+    --secondary: #22d3ee;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --purple: #a78bfa;
     --bg-dark: #1e1b4b;
-    --bg-card: rgba(15, 14, 46, 0.95);
-    --text-primary: #f1f5f9;
-    --text-muted: #94a3b8;
-    --border-color: rgba(99, 102, 241, 0.2);
+    --bg-card: rgba(30, 27, 75, 0.98);
+    --text-primary: #ffffff;
+    --text-secondary: #e2e8f0;
+    --text-muted: #a5b4c8;
+    --border-color: rgba(129, 140, 248, 0.25);
 }
 
 /* Base Styles */
+html {
+    background: #1e1b4b;
+}
+
 body {
     background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
     background-attachment: fixed;
@@ -46,15 +51,21 @@ body {
 /* Cards */
 .card {
     background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 16px;
     backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .card-header {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.03);
     border-bottom: 1px solid var(--border-color);
     color: var(--text-primary);
+    font-weight: 600;
+}
+
+.card-body {
+    color: var(--text-secondary);
 }
 
 /* Stat Cards */
@@ -84,24 +95,31 @@ body {
 
 /* Tables */
 .table {
-    color: var(--text-primary);
+    color: var(--text-secondary);
+    --bs-table-bg: transparent;
 }
 
 .table thead th {
     border-bottom: 1px solid var(--border-color);
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
     font-size: 0.75rem;
     letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .table tbody tr {
     border-bottom: 1px solid var(--border-color);
 }
 
+.table tbody td {
+    color: var(--text-secondary);
+}
+
 .table-hover tbody tr:hover {
-    background: rgba(99, 102, 241, 0.1);
+    background: rgba(129, 140, 248, 0.1);
+    --bs-table-hover-bg: rgba(129, 140, 248, 0.1);
 }
 
 /* Category Badges */
@@ -157,11 +175,26 @@ body {
     border-radius: 20px;
     padding: 0.4rem 1rem;
     font-size: 0.85rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.3);
+    border-width: 2px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.month-nav .btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .month-nav .btn.active {
-    background: var(--primary);
-    border-color: var(--primary);
+    background: rgba(129, 140, 248, 0.2);
+    border-color: rgba(255, 255, 255, 0.6);
+    border-width: 2px;
+    color: var(--text-primary);
+    font-weight: 700;
 }
 
 /* Forms */
@@ -282,6 +315,95 @@ body {
 .text-danger { color: var(--danger) !important; }
 .text-warning { color: var(--warning) !important; }
 .text-muted { color: var(--text-muted) !important; }
+
+/* Improved Readability */
+strong, b, h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+}
+
+.small, small {
+    color: var(--text-secondary);
+}
+
+/* List Group for Budget Cards */
+.list-group-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.list-group-item:hover {
+    background: rgba(129, 140, 248, 0.1);
+}
+
+/* Input Group */
+.input-group-text {
+    background: rgba(30, 27, 75, 0.8);
+    border-color: var(--border-color);
+    color: var(--text-muted);
+}
+
+/* Badge Improvements */
+.badge {
+    font-weight: 600;
+}
+
+.badge.bg-secondary {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: var(--text-secondary);
+}
+
+/* Button Group */
+.btn-group .btn {
+    border-color: var(--border-color);
+}
+
+.btn-group .btn.active {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: white !important;
+}
+
+/* Category Cards in Budget */
+.category-card .card {
+    background: rgba(30, 27, 75, 0.95);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.category-card .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.category-card strong {
+    color: var(--text-primary);
+}
+
+/* Easter Egg - positioned in overscroll area */
+.easter-egg-overscroll {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    text-align: center;
+    padding: 4rem 1rem 8rem 1rem;
+    margin-top: 100px;
+    color: rgba(165, 180, 200, 0.5);
+    font-style: italic;
+    font-size: 0.9rem;
+    background: #1e1b4b;
+}
+
+.easter-egg-overscroll i {
+    color: var(--warning);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
 
 /* Responsive */
 @media (max-width: 768px) {

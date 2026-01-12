@@ -23,7 +23,7 @@
         <div class="card stat-card">
             <div class="card-body text-center">
                 <div class="stat-label">Income</div>
-                <div class="stat-value text-success">${{ "%.2f"|format(data.summary.income) }}</div>
+                <div class="stat-value text-success">{{ data.summary.income|currency }}</div>
             </div>
         </div>
     </div>
@@ -31,7 +31,7 @@
         <div class="card stat-card">
             <div class="card-body text-center">
                 <div class="stat-label">Expenses</div>
-                <div class="stat-value text-danger">${{ "%.2f"|format(data.summary.expenses) }}</div>
+                <div class="stat-value text-danger">{{ data.summary.expenses|currency }}</div>
             </div>
         </div>
     </div>
@@ -40,7 +40,7 @@
             <div class="card-body text-center">
                 <div class="stat-label">Net Cashflow</div>
                 <div class="stat-value {% if data.summary.net >= 0 %}text-success{% else %}text-danger{% endif %}">
-                    ${{ "%.2f"|format(data.summary.net) }}
+                    {{ data.summary.net|currency }}
                 </div>
             </div>
         </div>

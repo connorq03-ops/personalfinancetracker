@@ -102,6 +102,37 @@ class BudgetItem(Base):
     category = relationship('Category', back_populates='budget_items')
 
 
+class SavingsGoal(Base):
+    """Savings goal for tracking progress toward financial targets."""
+    __tablename__ = 'savings_goals'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    name = Column(String(100), nullable=False)
+    target_amount = Column(Float, nullable=False)
+    current_amount = Column(Float, default=0)
+    target_date = Column(Date, nullable=True)
+    icon = Column(String(50), default='bi-piggy-bank')
+    color = Column(String(20), default='primary')
+    is_completed = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship('User', backref='savings_goals')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'target_amount': self.target_amount,
+            'current_amount': self.current_amount,
+            'target_date': self.target_date.isoformat() if self.target_date else None,
+            'icon': self.icon,
+            'color': self.color,
+            'is_completed': self.is_completed,
+            'percent_complete': round((self.current_amount / self.target_amount * 100) if self.target_amount > 0 else 0, 1)
+        }
+
+
 # Database initialization
 _engine = None
 _Session = None
