@@ -8,7 +8,7 @@
     --danger: #ef4444;
     --purple: #8b5cf6;
     --bg-dark: #1e1b4b;
-    --bg-card: rgba(30, 27, 75, 0.8);
+    --bg-card: rgba(15, 14, 46, 0.95);
     --text-primary: #f1f5f9;
     --text-muted: #94a3b8;
     --border-color: rgba(99, 102, 241, 0.2);
@@ -79,6 +79,7 @@ body {
 .stat-value {
     font-size: 1.75rem;
     font-weight: 700;
+    color: var(--text-primary);
 }
 
 /* Tables */

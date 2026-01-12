@@ -264,6 +264,8 @@
     async function saveCategory() {
         const transactionId = document.getElementById('editTransactionId').value;
         const categoryId = document.getElementById('categorySelect').value;
+        const selectedOption = document.getElementById('categorySelect').selectedOptions[0];
+        const newCategoryName = selectedOption ? selectedOption.text.split(' (')[0] : '';
         
         try {
             const response = await fetch(`/api/transactions/${transactionId}/category`, {
@@ -273,16 +275,21 @@
             });
             
             if (response.ok) {
-                location.reload();
+                // Update the badge in place without reloading
+                const badge = document.querySelector(`[data-transaction-id="${transactionId}"]`);
+                if (badge) {
+                    badge.textContent = newCategoryName;
+                }
+                categoryModal.hide();
             } else {
                 const data = await response.json();
                 alert('Error: ' + (data.error || 'Unknown error'));
+                categoryModal.hide();
             }
         } catch (error) {
             alert('Error saving category: ' + error.message);
+            categoryModal.hide();
         }
-        
-        categoryModal.hide();
     }
     
     async function createCategory() {

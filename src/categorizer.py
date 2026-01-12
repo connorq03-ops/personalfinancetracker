@@ -131,7 +131,8 @@ class RuleBasedCategorizer:
             'Subscriptions': [
                 'netflix', 'spotify', 'hulu', 'amazon prime',
                 'apple.com/bill', 'disney+', 'hbo', 'youtube premium',
-                'microsoft*ultimate', 'subscription'
+                'microsoft*ultimate', 'subscription', 'canva', 'perplexity',
+                'ouraring', 'tonal', 'uber *one membership', 'substack'
             ],
             
             'Utilities': [
@@ -140,12 +141,12 @@ class RuleBasedCategorizer:
             ],
             
             'Rent': [
-                'rent', 'apartment', 'lease', 'property mgmt'
+                'rent', 'apartment', 'lease', 'property mgmt', 'greystar', 'pay ready'
             ],
             
             'Investments': [
                 'fid bkg svc', 'moneyline', 'fidelity', 'vanguard',
-                'schwab', 'acorns', 'etrade', 'td ameritrade'
+                'schwab', 'acorns', 'etrade', 'td ameritrade', 'robinhood des:funds'
             ],
             
             'Credit Card Payment': [
@@ -158,12 +159,13 @@ class RuleBasedCategorizer:
             
             'Shopping': [
                 'amazon', 'target', 'walmart', 'best buy', 'home depot',
-                'lowes', 'ikea', 'amz*'
+                'lowes', 'ikea', 'amz*', 'wayfair', 'dsw', 'old navy',
+                'nike', 'cuts clothing', 'chewy', 'lindt'
             ],
             
             'Gas': [
                 'shell', 'chevron', 'exxon', 'gas station', 'fuel',
-                'bp ', 'mobil', 'valero'
+                'bp ', 'mobil', 'valero', 'texaco', 'qt ', '7-eleven'
             ],
             
             'Tolls': ['hctra', 'ez tag', 'toll'],
@@ -224,7 +226,42 @@ class RuleBasedCategorizer:
             
             'Travel': [
                 'airline', 'southwest', 'delta', 'united', 'american air',
-                'hotel', 'airbnb', 'marriott', 'hilton'
+                'hotel', 'airbnb', 'marriott', 'hilton', 'hyatt', 'jetblue',
+                'air canada', 'wifionboard', 'swa inflight', 'duty free',
+                'ristorante', 'venezia', 'zurich', 'milano'
+            ],
+            
+            'Travel Food': [
+                'airport-f&b', 'airport food', 'hudson news', 'minute suites',
+                'jfk ', 'lax ', 'aus ', 'sdx aus', 'tim hortons'
+            ],
+            
+            'Transportation': [
+                'mta*nyct', 'metro', 'transit', 'subway'
+            ],
+            
+            'Auto': [
+                'wells fargo auto', 'auto loan', 'car payment', 'daves ultimate auto'
+            ],
+            
+            'Pest Control': [
+                'hawx pest', 'pest control', 'terminix', 'orkin'
+            ],
+            
+            'Hair/Beauty': [
+                'salon', 'barber', 'haircut', 'black orchid'
+            ],
+            
+            'Golf': [
+                'harveypenick', 'golf', 'glf*', 'topgolf'
+            ],
+            
+            'Gambling': [
+                'draftkings', 'fanduel', 'bet365', 'caesars sports'
+            ],
+            
+            'CC Payment': [
+                'payment - thank you', 'payment thank you'
             ],
         }
     
