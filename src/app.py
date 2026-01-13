@@ -18,6 +18,7 @@ from parsers.boa_parser import BoAParser
 from parsers.robinhood_parser import RobinhoodParser
 from parsers.venmo_parser import VenmoParser
 import merchant_extractor
+from analytics_routes import analytics_bp
 
 # Initialize Flask app
 app = Flask(__name__, 
@@ -25,6 +26,9 @@ app = Flask(__name__,
             static_folder='../static')
 CORS(app)
 
+
+# Register analytics blueprint
+app.register_blueprint(analytics_bp)
 # Configuration
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'finances.db')
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
@@ -190,6 +194,12 @@ def dashboard():
                          available_months=available_months)
 
 
+
+
+@app.route("/analytics")
+def analytics():
+    """Advanced analytics page."""
+    return render_template("analytics.html")
 @app.route('/budget')
 def budget():
     """Budget management page."""
