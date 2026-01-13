@@ -25,6 +25,10 @@ env/
 uploads/*
 !uploads/.gitkeep
 
+# Data backups (KEEP these - they restore categorized transactions)
+!data/
+!data/transactions_backup.json
+
 # Logs
 *.log
 

@@ -19,6 +19,7 @@ from parsers.robinhood_parser import RobinhoodParser
 from parsers.venmo_parser import VenmoParser
 import merchant_extractor
 from analytics_routes import analytics_bp
+from data_persistence import check_and_restore, export_data
 
 # Initialize Flask app
 app = Flask(__name__, 
@@ -35,6 +36,9 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'upload
 
 # Initialize database
 init_db(DB_PATH)
+
+# Auto-restore data from backup if database is empty
+check_and_restore()
 
 # Initialize services
 dashboard_gen = DashboardGenerator()
