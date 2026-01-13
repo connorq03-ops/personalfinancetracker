@@ -17,13 +17,20 @@
     {% endfor %}
 </div>
 
-<!-- Summary Cards -->
+<!-- Summary Cards with Month-over-Month Comparison -->
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card stat-card">
             <div class="card-body text-center">
                 <div class="stat-label">Income</div>
                 <div class="stat-value text-success">{{ data.summary.income|currency }}</div>
+                {% if data.comparison and data.comparison.income > 0 %}
+                    {% set income_change = ((data.summary.income - data.comparison.income) / data.comparison.income * 100) %}
+                    <div class="comparison-badge {% if income_change >= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="bi {% if income_change >= 0 %}bi-arrow-up{% else %}bi-arrow-down{% endif %}"></i>
+                        {{ "%.0f"|format(income_change|abs) }}% vs {{ data.comparison.prev_month_name[:3] }}
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -32,6 +39,13 @@
             <div class="card-body text-center">
                 <div class="stat-label">Expenses</div>
                 <div class="stat-value text-danger">{{ data.summary.expenses|currency }}</div>
+                {% if data.comparison and data.comparison.expenses > 0 %}
+                    {% set expense_change = ((data.summary.expenses - data.comparison.expenses) / data.comparison.expenses * 100) %}
+                    <div class="comparison-badge {% if expense_change <= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="bi {% if expense_change >= 0 %}bi-arrow-up{% else %}bi-arrow-down{% endif %}"></i>
+                        {{ "%.0f"|format(expense_change|abs) }}% vs {{ data.comparison.prev_month_name[:3] }}
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -42,6 +56,13 @@
                 <div class="stat-value {% if data.summary.net >= 0 %}text-success{% else %}text-danger{% endif %}">
                     {{ data.summary.net|currency }}
                 </div>
+                {% if data.comparison %}
+                    {% set net_diff = data.summary.net - data.comparison.net %}
+                    <div class="comparison-badge {% if net_diff >= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="bi {% if net_diff >= 0 %}bi-arrow-up{% else %}bi-arrow-down{% endif %}"></i>
+                        {{ "${:,.0f}".format(net_diff|abs) }} vs {{ data.comparison.prev_month_name[:3] }}
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -50,10 +71,43 @@
             <div class="card-body text-center">
                 <div class="stat-label">Savings Rate</div>
                 <div class="stat-value">{{ data.summary.savings_rate }}%</div>
+                {% if data.comparison %}
+                    {% set rate_diff = data.summary.savings_rate - data.comparison.savings_rate %}
+                    <div class="comparison-badge {% if rate_diff >= 0 %}positive{% else %}negative{% endif %}">
+                        <i class="bi {% if rate_diff >= 0 %}bi-arrow-up{% else %}bi-arrow-down{% endif %}"></i>
+                        {{ "%.1f"|format(rate_diff|abs) }}pts vs {{ data.comparison.prev_month_name[:3] }}
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<!-- Quick Insights Section -->
+{% if data.insights %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Quick Insights</h5>
+            </div>
+            <div class="card-body">
+                <div class="insights-grid">
+                    {% for insight in data.insights %}
+                    <div class="insight-card {{ insight.type }}">
+                        <i class="bi {{ insight.icon }}"></i>
+                        <div class="insight-content">
+                            <div class="insight-title">{{ insight.title }}</div>
+                            <div class="insight-message">{{ insight.message }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Charts Row -->
 <div class="row g-4">
@@ -96,17 +150,51 @@
     </div>
 </div>
 
-<!-- Category Breakdown Table -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
+<!-- Top Merchants and Category Breakdown Row -->
+<div class="row mt-4 g-4">
+    <!-- Top Merchants -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-shop me-2"></i>Top Merchants</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if data.top_merchants %}
+                <div class="merchant-list">
+                    {% for merchant in data.top_merchants[:8] %}
+                    <div class="merchant-item">
+                        <div class="merchant-rank">{{ loop.index }}</div>
+                        <div class="merchant-info">
+                            <div class="merchant-name">{{ merchant.name }}</div>
+                            <div class="merchant-amount">${{ "%.2f"|format(merchant.amount) }}</div>
+                        </div>
+                        <div class="merchant-bar-container">
+                            {% set max_amount = data.top_merchants[0].amount if data.top_merchants else 1 %}
+                            <div class="merchant-bar" style="width: {{ (merchant.amount / max_amount * 100) }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-shop fs-1 d-block mb-2"></i>
+                    No merchant data available
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Category Breakdown Table -->
+    <div class="col-md-8">
+        <div class="card h-100">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Category Breakdown</h5>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: 400px;">
                     <table class="table table-hover mb-0">
-                        <thead>
+                        <thead class="sticky-top" style="background: var(--bg-card);">
                             <tr>
                                 <th>Category</th>
                                 <th class="text-end">Amount</th>

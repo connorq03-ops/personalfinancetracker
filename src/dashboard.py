@@ -50,6 +50,12 @@ class DashboardGenerator:
             # Get spending trends (last 6 months)
             trends = self._get_spending_trends(user_id, year, month)
             
+            # Get previous month comparison data
+            prev_month_data = self._get_previous_month_comparison(user_id, year, month, session)
+            
+            # Generate quick insights
+            insights = self._generate_quick_insights(summary, prev_month_data, by_category, top_merchants)
+            
             return {
                 'year': year,
                 'month': month,
@@ -57,7 +63,9 @@ class DashboardGenerator:
                 'by_category': by_category,
                 'by_group': by_group,
                 'top_merchants': top_merchants,
-                'trends': trends
+                'trends': trends,
+                'comparison': prev_month_data,
+                'insights': insights
             }
         finally:
             session.close()
@@ -405,3 +413,139 @@ class DashboardGenerator:
             return result
         finally:
             session.close()
+    
+    def _get_previous_month_comparison(self, user_id, year, month, session):
+        """Get previous month data for comparison."""
+        # Calculate previous month
+        if month == 1:
+            prev_year, prev_month = year - 1, 12
+        else:
+            prev_year, prev_month = year, month - 1
+        
+        # Get date range for previous month
+        prev_start = date(prev_year, prev_month, 1)
+        if prev_month == 12:
+            prev_end = date(prev_year + 1, 1, 1)
+        else:
+            prev_end = date(prev_year, prev_month + 1, 1)
+        
+        # Get previous month transactions
+        prev_transactions = session.query(Transaction).filter(
+            Transaction.user_id == user_id,
+            Transaction.date >= prev_start,
+            Transaction.date < prev_end
+        ).all()
+        
+        # Calculate previous month summary
+        excluded_ids = self._get_excluded_category_ids(session)
+        prev_income = sum(t.amount for t in prev_transactions if t.amount > 0)
+        prev_expenses = sum(
+            abs(t.amount) for t in prev_transactions 
+            if t.amount < 0 and t.category_id not in excluded_ids
+        )
+        prev_net = prev_income - prev_expenses
+        prev_savings_rate = (prev_net / prev_income * 100) if prev_income > 0 else 0
+        
+        # Get previous month category breakdown
+        prev_by_category = {}
+        for t in prev_transactions:
+            if t.amount >= 0 or t.category_id in excluded_ids:
+                continue
+            cat_name = t.category.name if t.category else 'Uncategorized'
+            prev_by_category[cat_name] = prev_by_category.get(cat_name, 0) + abs(t.amount)
+        
+        return {
+            'prev_year': prev_year,
+            'prev_month': prev_month,
+            'prev_month_name': date(prev_year, prev_month, 1).strftime('%B'),
+            'income': round(prev_income, 2),
+            'expenses': round(prev_expenses, 2),
+            'net': round(prev_net, 2),
+            'savings_rate': round(prev_savings_rate, 1),
+            'by_category': prev_by_category
+        }
+    
+    def _generate_quick_insights(self, current_summary, prev_data, by_category, top_merchants):
+        """Generate quick insights based on spending patterns."""
+        insights = []
+        
+        # Income change insight
+        if prev_data['income'] > 0:
+            income_change = ((current_summary['income'] - prev_data['income']) / prev_data['income']) * 100
+            if income_change > 10:
+                insights.append({
+                    'type': 'positive',
+                    'icon': 'bi-graph-up-arrow',
+                    'title': 'Income Up',
+                    'message': f"Income increased by {income_change:.0f}% from last month"
+                })
+            elif income_change < -10:
+                insights.append({
+                    'type': 'warning',
+                    'icon': 'bi-graph-down-arrow',
+                    'title': 'Income Down',
+                    'message': f"Income decreased by {abs(income_change):.0f}% from last month"
+                })
+        
+        # Expense change insight
+        if prev_data['expenses'] > 0:
+            expense_change = ((current_summary['expenses'] - prev_data['expenses']) / prev_data['expenses']) * 100
+            if expense_change > 15:
+                insights.append({
+                    'type': 'warning',
+                    'icon': 'bi-exclamation-triangle',
+                    'title': 'Spending Up',
+                    'message': f"Expenses increased by {expense_change:.0f}% from last month"
+                })
+            elif expense_change < -10:
+                insights.append({
+                    'type': 'positive',
+                    'icon': 'bi-piggy-bank',
+                    'title': 'Spending Down',
+                    'message': f"You spent {abs(expense_change):.0f}% less than last month"
+                })
+        
+        # Savings rate insight
+        if current_summary['savings_rate'] >= 20:
+            insights.append({
+                'type': 'positive',
+                'icon': 'bi-trophy',
+                'title': 'Great Savings',
+                'message': f"You're saving {current_summary['savings_rate']:.0f}% of your income!"
+            })
+        elif current_summary['savings_rate'] < 0:
+            insights.append({
+                'type': 'negative',
+                'icon': 'bi-exclamation-circle',
+                'title': 'Overspending',
+                'message': "You spent more than you earned this month"
+            })
+        
+        # Category change insights
+        prev_by_cat = prev_data.get('by_category', {})
+        for cat in by_category[:5]:  # Top 5 categories
+            cat_name = cat['name']
+            current_amt = cat['amount']
+            prev_amt = prev_by_cat.get(cat_name, 0)
+            
+            if prev_amt > 0:
+                cat_change = ((current_amt - prev_amt) / prev_amt) * 100
+                if cat_change > 50 and current_amt > 100:
+                    insights.append({
+                        'type': 'warning',
+                        'icon': 'bi-arrow-up-circle',
+                        'title': f'{cat_name} Spike',
+                        'message': f"{cat_name} spending up {cat_change:.0f}% (${current_amt:.0f} vs ${prev_amt:.0f})"
+                    })
+        
+        # Top merchant insight
+        if top_merchants:
+            top = top_merchants[0]
+            insights.append({
+                'type': 'info',
+                'icon': 'bi-shop',
+                'title': 'Top Merchant',
+                'message': f"Most spent at {top['name']}: ${top['amount']:.2f}"
+            })
+        
+        return insights[:6]  # Return max 6 insights
