@@ -1026,6 +1026,153 @@ class AdvancedAnalytics:
             session.close()
 
 
+    def get_category_trends(self, user_id=1, months=3):
+        """Analyze category spending trends over time."""
+        session = get_session()
+        try:
+            end_date = date.today()
+            start_date = end_date - timedelta(days=months * 31)
+            excluded_ids = self._get_excluded_category_ids(session)
+            
+            transactions = session.query(Transaction).filter(
+                Transaction.user_id == user_id,
+                Transaction.date >= start_date,
+                Transaction.amount < 0
+            ).all()
+            
+            if len(transactions) < 10:
+                return {"trends": [], "message": "Insufficient data"}
+            
+            # Group spending by month and category
+            monthly_category = defaultdict(lambda: defaultdict(float))
+            
+            for t in transactions:
+                cat = session.query(Category).filter_by(id=t.category_id).first()
+                cat_name = cat.name if cat else 'Uncategorized'
+                
+                if self._is_actual_spending(t, cat_name, excluded_ids):
+                    month_key = t.date.strftime('%Y-%m')
+                    monthly_category[month_key][cat_name] += abs(t.amount)
+            
+            if len(monthly_category) < 2:
+                return {"trends": [], "message": "Need at least 2 months of data"}
+            
+            # Sort months chronologically
+            sorted_months = sorted(monthly_category.keys())
+            
+            # Calculate trends for each category
+            trends = []
+            all_categories = set()
+            for month_data in monthly_category.values():
+                all_categories.update(month_data.keys())
+            
+            for cat_name in all_categories:
+                amounts = [monthly_category[m].get(cat_name, 0) for m in sorted_months]
+                
+                # Skip categories with minimal spending
+                if max(amounts) < 50:
+                    continue
+                
+                # Calculate month-over-month change
+                recent = amounts[-1] if amounts else 0
+                previous = amounts[-2] if len(amounts) >= 2 else 0
+                
+                if previous > 0:
+                    change_pct = ((recent - previous) / previous) * 100
+                elif recent > 0:
+                    change_pct = 100  # New spending
+                else:
+                    change_pct = 0
+                
+                # Calculate average and trend direction
+                avg_amount = np.mean([a for a in amounts if a > 0]) if any(amounts) else 0
+                
+                # Determine trend using simple linear regression
+                if len(amounts) >= 2:
+                    x = np.arange(len(amounts))
+                    slope = np.polyfit(x, amounts, 1)[0]
+                    
+                    if slope > avg_amount * 0.1:
+                        trend_direction = 'increasing'
+                        trend_icon = '📈'
+                    elif slope < -avg_amount * 0.1:
+                        trend_direction = 'decreasing'
+                        trend_icon = '📉'
+                    else:
+                        trend_direction = 'stable'
+                        trend_icon = '➡️'
+                else:
+                    trend_direction = 'stable'
+                    trend_icon = '➡️'
+                    slope = 0
+                
+                trends.append({
+                    'category': cat_name,
+                    'current_month': round(recent, 2),
+                    'previous_month': round(previous, 2),
+                    'change_amount': round(recent - previous, 2),
+                    'change_pct': round(change_pct, 1),
+                    'average': round(avg_amount, 2),
+                    'trend_direction': trend_direction,
+                    'trend_icon': trend_icon,
+                    'monthly_amounts': {m: round(monthly_category[m].get(cat_name, 0), 2) for m in sorted_months},
+                    'slope': round(slope, 2)
+                })
+            
+            # Sort by absolute change percentage (biggest movers first)
+            trends.sort(key=lambda x: abs(x['change_pct']), reverse=True)
+            
+            # Separate into increasing, decreasing, stable
+            increasing = [t for t in trends if t['trend_direction'] == 'increasing']
+            decreasing = [t for t in trends if t['trend_direction'] == 'decreasing']
+            stable = [t for t in trends if t['trend_direction'] == 'stable']
+            
+            # Generate summary insights
+            insights = []
+            
+            if increasing:
+                top_increase = increasing[0]
+                insights.append({
+                    'type': 'top_increase',
+                    'message': f"📈 {top_increase['category']} up {top_increase['change_pct']:.0f}% (${top_increase['previous_month']:.0f} → ${top_increase['current_month']:.0f})"
+                })
+            
+            if decreasing:
+                top_decrease = decreasing[0]
+                insights.append({
+                    'type': 'top_decrease',
+                    'message': f"📉 {top_decrease['category']} down {abs(top_decrease['change_pct']):.0f}% (${top_decrease['previous_month']:.0f} → ${top_decrease['current_month']:.0f})"
+                })
+            
+            # Total spending trend
+            total_by_month = {m: sum(monthly_category[m].values()) for m in sorted_months}
+            total_recent = total_by_month[sorted_months[-1]]
+            total_previous = total_by_month[sorted_months[-2]] if len(sorted_months) >= 2 else 0
+            
+            if total_previous > 0:
+                total_change_pct = ((total_recent - total_previous) / total_previous) * 100
+                insights.append({
+                    'type': 'total_trend',
+                    'message': f"{'📈' if total_change_pct > 0 else '📉'} Total spending {'up' if total_change_pct > 0 else 'down'} {abs(total_change_pct):.0f}% month-over-month"
+                })
+            
+            return {
+                "trends": trends[:15],  # Top 15 categories
+                "total_categories": len(trends),
+                "months_analyzed": len(sorted_months),
+                "period": f"{sorted_months[0]} to {sorted_months[-1]}",
+                "summary": {
+                    "increasing": len(increasing),
+                    "decreasing": len(decreasing),
+                    "stable": len(stable)
+                },
+                "insights": insights,
+                "total_by_month": {m: round(v, 2) for m, v in total_by_month.items()}
+            }
+        finally:
+            session.close()
+
+
 _analytics = None
 
 def get_analytics():

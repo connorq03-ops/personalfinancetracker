@@ -365,6 +365,19 @@
             </div>
         </div>
     </div>
+    
+    <!-- Category Trends -->
+    <div class="analytics-card" id="trends-card" style="grid-column: 1 / -1;">
+        <div class="analytics-card-header" style="background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); color: white;">
+            <i class="bi bi-bar-chart-line"></i>Category Trends
+        </div>
+        <div class="analytics-card-body" id="trends-content">
+            <div class="empty-state">
+                <div class="loading-spinner"></div>
+                <p>Analyzing category trends...</p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -373,7 +386,8 @@ async function loadAllAnalytics() {
         loadFinancialHealth(),
         loadAnomalies(),
         loadPredictions(),
-        loadInsights()
+        loadInsights(),
+        loadCategoryTrends()
     ]);
 }
 
@@ -560,6 +574,91 @@ async function loadInsights() {
                 <div class="insight-recommendation">💡 ${i.recommendation}</div>
             </div>
         `).join('');
+        
+    } catch (error) {
+        container.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Error: ${error.message}</p></div>`;
+    }
+}
+
+async function loadCategoryTrends() {
+    const container = document.getElementById('trends-content');
+    try {
+        const response = await fetch('/api/analytics/category-trends?months=3');
+        const result = await response.json();
+        
+        if (!result.success) throw new Error(result.error);
+        
+        const data = result.data;
+        const trends = data.trends || [];
+        const insights = data.insights || [];
+        const summary = data.summary || {};
+        
+        if (trends.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="bi bi-bar-chart"></i><p>Need more data for trend analysis</p></div>`;
+            return;
+        }
+        
+        let html = `
+            <div class="stat-row">
+                <div>
+                    <div class="stat-value" style="color: #10b981;">${summary.increasing || 0}</div>
+                    <div class="stat-label">📈 Increasing</div>
+                </div>
+                <div>
+                    <div class="stat-value" style="color: #ef4444;">${summary.decreasing || 0}</div>
+                    <div class="stat-label">📉 Decreasing</div>
+                </div>
+                <div>
+                    <div class="stat-value" style="color: #6b7280;">${summary.stable || 0}</div>
+                    <div class="stat-label">➡️ Stable</div>
+                </div>
+            </div>
+        `;
+        
+        // Add insights
+        if (insights.length > 0) {
+            html += `<div class="mb-3">`;
+            insights.forEach(i => {
+                html += `<div class="recommendation-item">${i.message}</div>`;
+            });
+            html += `</div>`;
+        }
+        
+        // Add trend table
+        html += `
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table style="width: 100%; font-size: 0.9rem;">
+                    <thead style="position: sticky; top: 0; background: var(--card-bg);">
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <th style="text-align: left; padding: 0.5rem;">Category</th>
+                            <th style="text-align: right; padding: 0.5rem;">Previous</th>
+                            <th style="text-align: right; padding: 0.5rem;">Current</th>
+                            <th style="text-align: right; padding: 0.5rem;">Change</th>
+                            <th style="text-align: center; padding: 0.5rem;">Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        trends.forEach(t => {
+            const changeColor = t.change_pct > 10 ? '#ef4444' : t.change_pct < -10 ? '#10b981' : '#6b7280';
+            const changeSign = t.change_pct > 0 ? '+' : '';
+            html += `
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.5rem; font-weight: 500;">${t.category}</td>
+                    <td style="text-align: right; padding: 0.5rem;">$${t.previous_month.toFixed(0)}</td>
+                    <td style="text-align: right; padding: 0.5rem;">$${t.current_month.toFixed(0)}</td>
+                    <td style="text-align: right; padding: 0.5rem; color: ${changeColor}; font-weight: 600;">
+                        ${changeSign}${t.change_pct.toFixed(0)}%
+                    </td>
+                    <td style="text-align: center; padding: 0.5rem;">${t.trend_icon}</td>
+                </tr>
+            `;
+        });
+        
+        html += `</tbody></table></div>`;
+        
+        container.innerHTML = html;
         
     } catch (error) {
         container.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Error: ${error.message}</p></div>`;

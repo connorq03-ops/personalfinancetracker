@@ -88,3 +88,16 @@ def get_budget_analysis():
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@analytics_bp.route('/category-trends', methods=['GET'])
+def get_category_trends():
+    """Get category spending trends over time."""
+    try:
+        user_id = request.args.get('user_id', 1, type=int)
+        months = request.args.get('months', 3, type=int)
+        analytics = get_analytics()
+        data = analytics.get_category_trends(user_id, months)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
