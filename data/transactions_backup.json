@@ -1,28 +1,28 @@
 {
-  "exported_at": "2026-01-13T15:15:15.135297",
+  "exported_at": "2026-01-13T15:24:15.092130",
   "categories": [
     {
       "id": 1,
       "name": "Groceries",
-      "group": "Food",
+      "group": "Groceries",
       "user_id": 1
     },
     {
       "id": 2,
       "name": "Eating Out",
-      "group": "Food",
+      "group": "Eating Out",
       "user_id": 1
     },
     {
       "id": 3,
       "name": "Coffee",
-      "group": "Food",
+      "group": "Coffee",
       "user_id": 1
     },
     {
       "id": 4,
       "name": "Gas",
-      "group": "Transportation",
+      "group": "Car",
       "user_id": 1
     },
     {
@@ -34,19 +34,19 @@
     {
       "id": 6,
       "name": "Parking",
-      "group": "Transportation",
+      "group": "Car",
       "user_id": 1
     },
     {
       "id": 7,
       "name": "Rent",
-      "group": "Housing",
+      "group": "House",
       "user_id": 1
     },
     {
       "id": 8,
       "name": "Utilities",
-      "group": "Housing",
+      "group": "House",
       "user_id": 1
     },
     {
@@ -58,7 +58,7 @@
     {
       "id": 10,
       "name": "Subscriptions",
-      "group": "Entertainment",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
@@ -94,7 +94,7 @@
     {
       "id": 16,
       "name": "Healthcare",
-      "group": "Health",
+      "group": "Personal Care",
       "user_id": 1
     },
     {
@@ -106,13 +106,13 @@
     {
       "id": 18,
       "name": "Alcohol",
-      "group": "Food",
+      "group": "Alcohol",
       "user_id": 1
     },
     {
       "id": 19,
       "name": "Tolls",
-      "group": "Transportation",
+      "group": "Car",
       "user_id": 1
     },
     {
@@ -160,31 +160,31 @@
     {
       "id": 27,
       "name": "Mortgage",
-      "group": "Housing",
+      "group": "House",
       "user_id": 1
     },
     {
       "id": 28,
       "name": "Phone/Internet",
-      "group": "Housing",
+      "group": "House",
       "user_id": 1
     },
     {
       "id": 29,
       "name": "Natural Gas",
-      "group": "Housing",
+      "group": "House",
       "user_id": 1
     },
     {
       "id": 30,
       "name": "Gym",
-      "group": "Health",
+      "group": "Wellness/Gym",
       "user_id": 1
     },
     {
       "id": 31,
       "name": "Pharmacy",
-      "group": "Health",
+      "group": "Personal Care",
       "user_id": 1
     },
     {
@@ -214,7 +214,7 @@
     {
       "id": 36,
       "name": "Home",
-      "group": "Shopping",
+      "group": "House",
       "user_id": 1
     },
     {
@@ -280,157 +280,157 @@
     {
       "id": 47,
       "name": "Car Maintenance",
-      "group": "Transportation",
+      "group": "Car",
       "user_id": 1
     },
     {
       "id": 48,
       "name": "Golf",
-      "group": "Health",
+      "group": "Wellness/Gym",
       "user_id": 1
     },
     {
       "id": 49,
       "name": "Travel Food",
-      "group": "Food",
+      "group": "Eating Out",
       "user_id": 1
     },
     {
       "id": 50,
       "name": "Car Insurance/AAA",
-      "group": "Transportation",
+      "group": "Car",
       "user_id": 1
     },
     {
       "id": 51,
       "name": "Pest Control",
-      "group": "Housing",
+      "group": "House",
       "user_id": 1
     },
     {
       "id": 52,
       "name": "Personal Care",
-      "group": "Health",
+      "group": "Personal Care",
       "user_id": 1
     },
     {
       "id": 53,
       "name": "Furniture",
-      "group": "Housing",
+      "group": "House",
       "user_id": 1
     },
     {
       "id": 54,
       "name": "Car Payment",
-      "group": "Transportation",
+      "group": "Car",
       "user_id": 1
     },
     {
       "id": 55,
       "name": "Sierra",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 56,
       "name": "Car Gas",
-      "group": "Fixed Expenses",
+      "group": "Car",
       "user_id": 1
     },
     {
       "id": 57,
       "name": "HBO",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 58,
       "name": "Spotify",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 59,
       "name": "Ulysses",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 60,
       "name": "Prime",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 61,
       "name": "Hair/Beauty",
-      "group": "Fixed Expenses",
+      "group": "Personal Care",
       "user_id": 1
     },
     {
       "id": 62,
       "name": "YoutubeTV",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 63,
       "name": "Uber",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 64,
       "name": "Microsoft",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 65,
       "name": "WiFi",
-      "group": "Fixed Expenses",
+      "group": "House",
       "user_id": 1
     },
     {
       "id": 66,
       "name": "Paramount+",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 67,
       "name": "ChatGPT",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 68,
       "name": "TXTAG",
-      "group": "Fixed Expenses",
+      "group": "Car",
       "user_id": 1
     },
     {
       "id": 69,
       "name": "Canva",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {
       "id": 70,
       "name": "Car",
-      "group": "Fixed Expenses",
+      "group": "Car",
       "user_id": 1
     },
     {
       "id": 71,
       "name": "Home Gas Bill",
-      "group": "Fixed Expenses",
+      "group": "House",
       "user_id": 1
     },
     {
       "id": 72,
       "name": "UberOne",
-      "group": "Fixed Expenses",
+      "group": "Subscriptions",
       "user_id": 1
     },
     {

@@ -236,6 +236,20 @@
         '#ef4444', '#ec4899', '#14b8a6', '#f97316', '#84cc16'
     ];
     
+    // Specific colors for key spending groups
+    const groupColors = {
+        'House': '#6366f1',        // Indigo
+        'Car': '#ef4444',          // Red
+        'Subscriptions': '#8b5cf6', // Purple
+        'Personal Care': '#ec4899', // Pink
+        'Wellness/Gym': '#10b981',  // Green
+        'Coffee': '#f59e0b',        // Amber
+        'Eating Out': '#f97316',    // Orange
+        'Groceries': '#14b8a6',     // Teal
+        'Alcohol': '#06b6d4',       // Cyan
+        'Other': '#64748b'          // Slate
+    };
+    
     // Category Doughnut Chart
     new Chart(document.getElementById('categoryChart'), {
         type: 'doughnut',
@@ -265,41 +279,47 @@
         }
     });
     
-    // Group Bar Chart
-    new Chart(document.getElementById('groupChart'), {
-        type: 'bar',
-        data: {
-            labels: groupData.map(g => g.name),
-            datasets: [{
-                data: groupData.map(g => g.amount),
-                backgroundColor: colors,
-                borderRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            indexAxis: 'y',
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: (ctx) => `$${ctx.raw.toFixed(2)}`
+    // Group Doughnut Chart with specific colors
+    if (groupData.length > 0) {
+        new Chart(document.getElementById('groupChart'), {
+            type: 'doughnut',
+            data: {
+                labels: groupData.map(g => g.name),
+                datasets: [{
+                    data: groupData.map(g => g.amount),
+                    backgroundColor: groupData.map(g => groupColors[g.name] || '#64748b'),
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                cutout: '55%',
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { 
+                            color: '#e2e8f0',
+                            padding: 12,
+                            usePointStyle: true,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = ((ctx.raw / total) * 100).toFixed(1);
+                                return ` $${ctx.raw.toFixed(0)} (${pct}%)`;
+                            }
+                        }
                     }
                 }
-            },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#e2e8f0' }
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { color: '#e2e8f0' }
-                }
             }
-        }
-    });
+        });
+    } else {
+        document.getElementById('groupChart').parentElement.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-pie-chart fs-1 d-block mb-2"></i>No lifestyle spending data for this month</div>';
+    }
     
     // Spending Trends Line Chart
     new Chart(document.getElementById('trendsChart'), {

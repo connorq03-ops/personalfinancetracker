@@ -570,6 +570,277 @@ strong, b, h1, h2, h3, h4, h5, h6 {
     transition: width 0.3s ease;
 }
 
+/* Category Group Colors */
+.category-badge.group-food {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.category-badge.group-transportation {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.category-badge.group-housing {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.category-badge.group-entertainment {
+    background: linear-gradient(135deg, #ec4899, #db2777);
+}
+
+.category-badge.group-shopping {
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+}
+
+.category-badge.group-financial {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+}
+
+.category-badge.group-health {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.category-badge.group-income {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.category-badge.group-travel {
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+}
+
+.category-badge.group-other {
+    background: linear-gradient(135deg, #64748b, #475569);
+}
+
+/* Date Group Separators */
+.date-group-header {
+    background: rgba(129, 140, 248, 0.1);
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--primary);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 38px;
+    z-index: 5;
+}
+
+.date-group-header i {
+    margin-right: 0.5rem;
+}
+
+.date-group-header .date-total {
+    float: right;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+/* Quick Filter Chips */
+.filter-chips {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.filter-chip:hover {
+    background: rgba(129, 140, 248, 0.15);
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.filter-chip.active {
+    background: rgba(129, 140, 248, 0.25);
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.filter-chip .chip-count {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+}
+
+/* Bulk Selection */
+.bulk-select-bar {
+    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: linear-gradient(135deg, var(--primary), var(--purple));
+    padding: 0.75rem 1rem;
+    border-radius: 8px 8px 0 0;
+    align-items: center;
+    justify-content: space-between;
+    animation: slideDown 0.2s ease;
+}
+
+.bulk-select-bar.active {
+    display: flex;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.bulk-select-bar .selected-count {
+    font-weight: 600;
+    color: white;
+}
+
+.bulk-select-bar .bulk-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.bulk-select-bar .btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.bulk-select-bar .btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.row-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.table tbody tr.selected {
+    background: rgba(129, 140, 248, 0.2) !important;
+}
+
+/* Mobile Transaction Cards */
+.mobile-transaction-list {
+    display: none;
+}
+
+.mobile-transaction-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s;
+}
+
+.mobile-transaction-card:hover {
+    background: rgba(129, 140, 248, 0.08);
+}
+
+.mobile-transaction-card.selected {
+    border-color: var(--primary);
+    background: rgba(129, 140, 248, 0.15);
+}
+
+.mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.mobile-card-merchant {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.mobile-card-amount {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.mobile-card-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mobile-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.mobile-card-date {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.mobile-card-description {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mobile-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.mobile-date-header {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--primary);
+    padding: 0.75rem 0 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Empty State Improvements */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.empty-state-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-message {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .stat-value {
@@ -591,5 +862,25 @@ strong, b, h1, h2, h3, h4, h5, h6 {
     .comparison-badge {
         font-size: 0.65rem;
         padding: 0.2rem 0.4rem;
+    }
+    
+    /* Show mobile cards, hide desktop table */
+    .desktop-table {
+        display: none !important;
+    }
+    
+    .mobile-transaction-list {
+        display: block;
+    }
+    
+    .filter-chips {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 0.5rem;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .filter-chip {
+        flex-shrink: 0;
     }
 }

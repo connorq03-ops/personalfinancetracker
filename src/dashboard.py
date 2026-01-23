@@ -116,19 +116,52 @@ class DashboardGenerator:
         
         return [{'name': name, 'amount': round(amt, 2)} for name, amt in sorted_cats]
     
+    # Key spending groups to focus on (lifestyle expenses)
+    KEY_GROUPS = [
+        'House', 'Car', 'Subscriptions', 'Personal Care', 
+        'Wellness/Gym', 'Coffee', 'Eating Out', 'Groceries', 'Alcohol'
+    ]
+    
+    # Groups to exclude from lifestyle chart (money movements, not expenses)
+    EXCLUDED_GROUPS = ['Financial', 'Transfer', 'Cash', 'Income', 'Other', 'Credit Cards']
+    
     def _get_group_breakdown(self, transactions, session):
-        """Get spending breakdown by category group."""
+        """Get spending breakdown by category group, focused on lifestyle expenses."""
         excluded_ids = self._get_excluded_category_ids(session)
         
-        group_totals = {}
+        # Exclude Uncategorized
+        uncategorized = session.query(Category).filter_by(name='Uncategorized').first()
+        uncategorized_id = uncategorized.id if uncategorized else None
+        
+        group_totals = {g: 0 for g in self.KEY_GROUPS}
+        group_totals['Shopping'] = 0  # Include shopping as lifestyle expense
+        group_totals['Entertainment'] = 0
+        group_totals['Travel'] = 0
+        
         for t in transactions:
             if t.amount >= 0 or t.category_id in excluded_ids:
                 continue
             
+            # Skip uncategorized
+            if t.category_id == uncategorized_id:
+                continue
+            
             group_name = t.category.group if t.category else 'Other'
-            group_totals[group_name] = group_totals.get(group_name, 0) + abs(t.amount)
+            
+            # Skip excluded groups (financial transactions)
+            if group_name in self.EXCLUDED_GROUPS:
+                continue
+            
+            # Map to key groups
+            if group_name in group_totals:
+                group_totals[group_name] += abs(t.amount)
         
-        sorted_groups = sorted(group_totals.items(), key=lambda x: x[1], reverse=True)
+        # Sort by amount descending, filter out zero amounts
+        sorted_groups = sorted(
+            [(k, v) for k, v in group_totals.items() if v > 0],
+            key=lambda x: x[1], 
+            reverse=True
+        )
         
         return [{'name': name, 'amount': round(amt, 2)} for name, amt in sorted_groups]
     
