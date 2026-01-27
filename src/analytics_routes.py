@@ -101,3 +101,56 @@ def get_category_trends():
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@analytics_bp.route('/merchants', methods=['GET'])
+def get_merchant_analysis():
+    """Get top merchants by spending."""
+    try:
+        user_id = request.args.get('user_id', 1, type=int)
+        months = request.args.get('months', 3, type=int)
+        analytics = get_analytics()
+        data = analytics.get_merchant_analysis(user_id, months)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@analytics_bp.route('/spending-patterns', methods=['GET'])
+def get_spending_patterns():
+    """Get spending patterns by day of week and time of month."""
+    try:
+        user_id = request.args.get('user_id', 1, type=int)
+        months = request.args.get('months', 3, type=int)
+        analytics = get_analytics()
+        data = analytics.get_spending_patterns(user_id, months)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@analytics_bp.route('/category-breakdown', methods=['GET'])
+def get_category_breakdown():
+    """Get spending breakdown by category for pie chart."""
+    try:
+        user_id = request.args.get('user_id', 1, type=int)
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+        analytics = get_analytics()
+        data = analytics.get_category_breakdown(user_id, year, month)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@analytics_bp.route('/recurring', methods=['GET'])
+def get_recurring_transactions():
+    """Detect recurring transactions (subscriptions, bills)."""
+    try:
+        user_id = request.args.get('user_id', 1, type=int)
+        months = request.args.get('months', 6, type=int)
+        analytics = get_analytics()
+        data = analytics.detect_recurring_transactions(user_id, months)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

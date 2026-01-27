@@ -1173,6 +1173,647 @@ class AdvancedAnalytics:
             session.close()
 
 
+    def get_merchant_analysis(self, user_id=1, months=3):
+        """Analyze spending by merchant/vendor."""
+        session = get_session()
+        try:
+            end_date = date.today()
+            start_date = end_date - timedelta(days=months * 31)
+            excluded_ids = self._get_excluded_category_ids(session)
+            
+            transactions = session.query(Transaction).filter(
+                Transaction.user_id == user_id,
+                Transaction.date >= start_date,
+                Transaction.amount < 0
+            ).all()
+            
+            if len(transactions) < 5:
+                return {"merchants": [], "message": "Insufficient data"}
+            
+            # Extract merchant from description and aggregate
+            merchant_data = defaultdict(lambda: {
+                'total': 0, 'count': 0, 'categories': set(), 
+                'amounts': [], 'dates': []
+            })
+            
+            for t in transactions:
+                cat = session.query(Category).filter_by(id=t.category_id).first()
+                cat_name = cat.name if cat else 'Uncategorized'
+                
+                if not self._is_actual_spending(t, cat_name, excluded_ids):
+                    continue
+                
+                # Extract merchant name from description
+                merchant = self._extract_merchant(t.description)
+                amt = abs(t.amount)
+                
+                merchant_data[merchant]['total'] += amt
+                merchant_data[merchant]['count'] += 1
+                merchant_data[merchant]['categories'].add(cat_name)
+                merchant_data[merchant]['amounts'].append(amt)
+                merchant_data[merchant]['dates'].append(t.date)
+            
+            if not merchant_data:
+                return {"merchants": [], "message": "No merchant data found"}
+            
+            # Build merchant list with stats
+            merchants = []
+            total_spending = sum(m['total'] for m in merchant_data.values())
+            
+            for name, data in merchant_data.items():
+                avg_transaction = np.mean(data['amounts'])
+                
+                # Calculate frequency (transactions per month)
+                if data['dates']:
+                    date_range = (max(data['dates']) - min(data['dates'])).days
+                    months_span = max(1, date_range / 30)
+                    frequency = data['count'] / months_span
+                else:
+                    frequency = data['count'] / months
+                
+                merchants.append({
+                    'name': name,
+                    'total': round(data['total'], 2),
+                    'count': data['count'],
+                    'avg_transaction': round(avg_transaction, 2),
+                    'pct_of_spending': round(data['total'] / total_spending * 100, 1) if total_spending > 0 else 0,
+                    'categories': list(data['categories']),
+                    'primary_category': max(data['categories'], key=lambda c: sum(1 for cat in data['categories'] if cat == c)) if data['categories'] else 'Unknown',
+                    'frequency_per_month': round(frequency, 1),
+                    'last_transaction': max(data['dates']).isoformat() if data['dates'] else None
+                })
+            
+            # Sort by total spending
+            merchants.sort(key=lambda x: x['total'], reverse=True)
+            
+            # Calculate insights
+            top_merchants = merchants[:5]
+            top_5_total = sum(m['total'] for m in top_merchants)
+            
+            # Find most frequent merchant
+            most_frequent = max(merchants, key=lambda x: x['count']) if merchants else None
+            
+            # Find highest average transaction
+            highest_avg = max(merchants, key=lambda x: x['avg_transaction']) if merchants else None
+            
+            insights = []
+            if top_merchants:
+                insights.append({
+                    'type': 'concentration',
+                    'message': f"Top 5 merchants account for {top_5_total/total_spending*100:.0f}% of spending" if total_spending > 0 else "No spending data"
+                })
+            
+            if most_frequent and most_frequent['count'] >= 5:
+                insights.append({
+                    'type': 'frequent',
+                    'message': f"Most visited: {most_frequent['name']} ({most_frequent['count']} transactions)"
+                })
+            
+            if highest_avg and highest_avg['avg_transaction'] > 100:
+                insights.append({
+                    'type': 'high_avg',
+                    'message': f"Highest avg spend: {highest_avg['name']} (${highest_avg['avg_transaction']:.0f}/visit)"
+                })
+            
+            return {
+                "merchants": merchants[:20],
+                "total_merchants": len(merchants),
+                "total_spending": round(total_spending, 2),
+                "period": f"{months} months",
+                "insights": insights,
+                "summary": {
+                    "top_5_concentration": round(top_5_total / total_spending * 100, 1) if total_spending > 0 else 0,
+                    "avg_merchants_per_month": round(len(merchants) / months, 1),
+                    "total_transactions": sum(m['count'] for m in merchants)
+                }
+            }
+        finally:
+            session.close()
+    
+    def _extract_merchant(self, description):
+        """Extract clean merchant name from transaction description."""
+        if not description:
+            return "Unknown"
+        
+        desc = description.upper().strip()
+        
+        # Common patterns to clean up
+        patterns_to_remove = [
+            r'\d{2}/\d{2}.*$',  # Date patterns
+            r'#\d+',  # Reference numbers
+            r'\*+\d+',  # Card numbers
+            r'PURCHASE.*$',
+            r'POS DEBIT.*$',
+            r'CHECKCARD.*$',
+            r'VISA.*$',
+            r'DEBIT.*$',
+            r'\s+\d{5,}',  # Long numbers
+            r'XX+\d+',  # Masked numbers
+        ]
+        
+        for pattern in patterns_to_remove:
+            desc = re.sub(pattern, '', desc)
+        
+        # Known merchant mappings
+        merchant_map = {
+            'AMZN': 'Amazon',
+            'AMAZON': 'Amazon',
+            'WHOLEFDS': 'Whole Foods',
+            'WHOLE FOODS': 'Whole Foods',
+            'TRADER JOE': "Trader Joe's",
+            'COSTCO': 'Costco',
+            'TARGET': 'Target',
+            'WALMART': 'Walmart',
+            'WALGREENS': 'Walgreens',
+            'CVS': 'CVS',
+            'STARBUCKS': 'Starbucks',
+            'SBUX': 'Starbucks',
+            'UBER EATS': 'Uber Eats',
+            'UBEREATS': 'Uber Eats',
+            'UBER': 'Uber',
+            'LYFT': 'Lyft',
+            'DOORDASH': 'DoorDash',
+            'GRUBHUB': 'Grubhub',
+            'NETFLIX': 'Netflix',
+            'SPOTIFY': 'Spotify',
+            'APPLE.COM': 'Apple',
+            'GOOGLE': 'Google',
+            'CHEVRON': 'Chevron',
+            'SHELL': 'Shell',
+            'EXXON': 'Exxon',
+            'BP': 'BP',
+            'CHIPOTLE': 'Chipotle',
+            'MCDONALDS': "McDonald's",
+            'CHICK-FIL-A': 'Chick-fil-A',
+            'CHICKFILA': 'Chick-fil-A',
+            'WENDYS': "Wendy's",
+            'DUNKIN': "Dunkin'",
+            'HEB': 'H-E-B',
+            'KROGER': 'Kroger',
+            'PUBLIX': 'Publix',
+            'SAFEWAY': 'Safeway',
+            'ALDI': 'Aldi',
+        }
+        
+        # Check for known merchants
+        for key, name in merchant_map.items():
+            if key in desc:
+                return name
+        
+        # Clean up and return first meaningful part
+        desc = re.sub(r'[^A-Z0-9\s\'-]', ' ', desc)
+        desc = ' '.join(desc.split())  # Normalize whitespace
+        
+        # Take first 2-3 words as merchant name
+        words = desc.split()[:3]
+        merchant = ' '.join(words).strip()
+        
+        return merchant.title() if merchant else "Unknown"
+    
+    def get_spending_patterns(self, user_id=1, months=3):
+        """Analyze spending patterns by day of week and time of month."""
+        session = get_session()
+        try:
+            end_date = date.today()
+            start_date = end_date - timedelta(days=months * 31)
+            excluded_ids = self._get_excluded_category_ids(session)
+            
+            transactions = session.query(Transaction).filter(
+                Transaction.user_id == user_id,
+                Transaction.date >= start_date,
+                Transaction.amount < 0
+            ).all()
+            
+            if len(transactions) < 10:
+                return {"patterns": {}, "message": "Insufficient data"}
+            
+            # Initialize pattern tracking
+            day_of_week = defaultdict(lambda: {'total': 0, 'count': 0, 'amounts': []})
+            week_of_month = defaultdict(lambda: {'total': 0, 'count': 0, 'amounts': []})
+            day_of_month = defaultdict(lambda: {'total': 0, 'count': 0})
+            
+            day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            
+            for t in transactions:
+                cat = session.query(Category).filter_by(id=t.category_id).first()
+                cat_name = cat.name if cat else 'Uncategorized'
+                
+                if not self._is_actual_spending(t, cat_name, excluded_ids):
+                    continue
+                
+                amt = abs(t.amount)
+                
+                # Day of week (0=Monday, 6=Sunday)
+                dow = t.date.weekday()
+                day_of_week[dow]['total'] += amt
+                day_of_week[dow]['count'] += 1
+                day_of_week[dow]['amounts'].append(amt)
+                
+                # Week of month (1-5)
+                wom = (t.date.day - 1) // 7 + 1
+                week_of_month[wom]['total'] += amt
+                week_of_month[wom]['count'] += 1
+                week_of_month[wom]['amounts'].append(amt)
+                
+                # Day of month (1-31)
+                dom = t.date.day
+                day_of_month[dom]['total'] += amt
+                day_of_month[dom]['count'] += 1
+            
+            # Build day of week analysis
+            dow_analysis = []
+            total_spending = sum(d['total'] for d in day_of_week.values())
+            
+            for i in range(7):
+                data = day_of_week[i]
+                avg = np.mean(data['amounts']) if data['amounts'] else 0
+                dow_analysis.append({
+                    'day': day_names[i],
+                    'day_index': i,
+                    'total': round(data['total'], 2),
+                    'count': data['count'],
+                    'avg_transaction': round(avg, 2),
+                    'pct_of_total': round(data['total'] / total_spending * 100, 1) if total_spending > 0 else 0
+                })
+            
+            # Build week of month analysis
+            week_names = ['Week 1 (1-7)', 'Week 2 (8-14)', 'Week 3 (15-21)', 'Week 4 (22-28)', 'Week 5 (29-31)']
+            wom_analysis = []
+            
+            for i in range(1, 6):
+                data = week_of_month[i]
+                avg = np.mean(data['amounts']) if data['amounts'] else 0
+                wom_analysis.append({
+                    'week': week_names[i-1],
+                    'week_index': i,
+                    'total': round(data['total'], 2),
+                    'count': data['count'],
+                    'avg_transaction': round(avg, 2),
+                    'pct_of_total': round(data['total'] / total_spending * 100, 1) if total_spending > 0 else 0
+                })
+            
+            # Build day of month heatmap data
+            dom_data = []
+            max_daily = max((d['total'] for d in day_of_month.values()), default=1)
+            
+            for day in range(1, 32):
+                data = day_of_month[day]
+                dom_data.append({
+                    'day': day,
+                    'total': round(data['total'], 2),
+                    'count': data['count'],
+                    'intensity': round(data['total'] / max_daily, 2) if max_daily > 0 else 0
+                })
+            
+            # Generate insights
+            insights = []
+            
+            # Highest spending day
+            highest_dow = max(dow_analysis, key=lambda x: x['total'])
+            lowest_dow = min(dow_analysis, key=lambda x: x['total'])
+            
+            if highest_dow['total'] > 0:
+                insights.append({
+                    'type': 'peak_day',
+                    'message': f"Highest spending day: {highest_dow['day']} (${highest_dow['total']:,.0f}, {highest_dow['pct_of_total']:.0f}%)"
+                })
+            
+            if lowest_dow['total'] > 0 and lowest_dow['day'] != highest_dow['day']:
+                insights.append({
+                    'type': 'low_day', 
+                    'message': f"Lowest spending day: {lowest_dow['day']} (${lowest_dow['total']:,.0f}, {lowest_dow['pct_of_total']:.0f}%)"
+                })
+            
+            # Weekend vs weekday
+            weekend_total = sum(d['total'] for d in dow_analysis if d['day_index'] >= 5)
+            weekday_total = sum(d['total'] for d in dow_analysis if d['day_index'] < 5)
+            
+            if weekday_total > 0:
+                weekend_ratio = weekend_total / (weekday_total / 5) * 2  # Normalize for # of days
+                if weekend_ratio > 1.3:
+                    insights.append({
+                        'type': 'weekend_heavy',
+                        'message': f"Weekend spending is {(weekend_ratio - 1) * 100:.0f}% higher than weekdays"
+                    })
+                elif weekend_ratio < 0.7:
+                    insights.append({
+                        'type': 'weekday_heavy',
+                        'message': f"Weekday spending is {(1 - weekend_ratio) * 100:.0f}% higher than weekends"
+                    })
+            
+            # Week of month pattern
+            highest_wom = max(wom_analysis, key=lambda x: x['total'])
+            if highest_wom['total'] > 0:
+                insights.append({
+                    'type': 'peak_week',
+                    'message': f"Highest spending: {highest_wom['week']} (${highest_wom['total']:,.0f})"
+                })
+            
+            return {
+                "day_of_week": dow_analysis,
+                "week_of_month": wom_analysis,
+                "day_of_month": dom_data,
+                "insights": insights,
+                "period": f"{months} months",
+                "total_spending": round(total_spending, 2),
+                "total_transactions": sum(d['count'] for d in dow_analysis),
+                "summary": {
+                    "weekend_spending": round(weekend_total, 2),
+                    "weekday_spending": round(weekday_total, 2),
+                    "weekend_pct": round(weekend_total / total_spending * 100, 1) if total_spending > 0 else 0,
+                    "avg_daily_spending": round(total_spending / (months * 30), 2)
+                }
+            }
+        finally:
+            session.close()
+
+
+    def get_category_breakdown(self, user_id=1, year=None, month=None):
+        """Get spending breakdown by category for a specific month."""
+        session = get_session()
+        try:
+            today = date.today()
+            if not year:
+                year = today.year
+            if not month:
+                month = today.month
+            
+            month_start = date(year, month, 1)
+            if month == 12:
+                month_end = date(year + 1, 1, 1)
+            else:
+                month_end = date(year, month + 1, 1)
+            
+            excluded_ids = self._get_excluded_category_ids(session)
+            
+            transactions = session.query(Transaction).filter(
+                Transaction.user_id == user_id,
+                Transaction.date >= month_start,
+                Transaction.date < month_end,
+                Transaction.amount < 0
+            ).all()
+            
+            if not transactions:
+                return {"categories": [], "message": "No data for this month"}
+            
+            # Aggregate by category
+            category_totals = defaultdict(lambda: {'total': 0, 'count': 0, 'group': 'Other'})
+            
+            for t in transactions:
+                cat = session.query(Category).filter_by(id=t.category_id).first()
+                cat_name = cat.name if cat else 'Uncategorized'
+                cat_group = cat.group if cat else 'Other'
+                
+                if not self._is_actual_spending(t, cat_name, excluded_ids):
+                    continue
+                
+                category_totals[cat_name]['total'] += abs(t.amount)
+                category_totals[cat_name]['count'] += 1
+                category_totals[cat_name]['group'] = cat_group
+            
+            if not category_totals:
+                return {"categories": [], "message": "No spending data after filtering"}
+            
+            total_spending = sum(c['total'] for c in category_totals.values())
+            
+            # Build category list
+            categories = []
+            for name, data in category_totals.items():
+                categories.append({
+                    'name': name,
+                    'group': data['group'],
+                    'total': round(data['total'], 2),
+                    'count': data['count'],
+                    'pct': round(data['total'] / total_spending * 100, 1) if total_spending > 0 else 0
+                })
+            
+            # Sort by total descending
+            categories.sort(key=lambda x: x['total'], reverse=True)
+            
+            # Group by category group for pie chart
+            group_totals = defaultdict(float)
+            for cat in categories:
+                group_totals[cat['group']] += cat['total']
+            
+            groups = [
+                {'name': name, 'total': round(total, 2), 'pct': round(total / total_spending * 100, 1) if total_spending > 0 else 0}
+                for name, total in sorted(group_totals.items(), key=lambda x: x[1], reverse=True)
+            ]
+            
+            # Color mapping for groups
+            group_colors = {
+                'Food': '#f97316',
+                'Transportation': '#3b82f6',
+                'Housing': '#8b5cf6',
+                'Entertainment': '#ec4899',
+                'Shopping': '#14b8a6',
+                'Financial': '#6366f1',
+                'Health': '#22c55e',
+                'Income': '#10b981',
+                'Travel': '#06b6d4',
+                'Other': '#64748b',
+                'Uncategorized': '#9ca3af'
+            }
+            
+            for g in groups:
+                g['color'] = group_colors.get(g['name'], '#64748b')
+            
+            for c in categories:
+                c['color'] = group_colors.get(c['group'], '#64748b')
+            
+            return {
+                "categories": categories[:15],
+                "groups": groups,
+                "total_spending": round(total_spending, 2),
+                "total_categories": len(categories),
+                "period": f"{year}-{month:02d}",
+                "month_name": month_start.strftime('%B %Y')
+            }
+        finally:
+            session.close()
+    
+    def detect_recurring_transactions(self, user_id=1, months=6):
+        """Detect recurring transactions (subscriptions, bills, etc.)."""
+        session = get_session()
+        try:
+            end_date = date.today()
+            start_date = end_date - timedelta(days=months * 31)
+            
+            transactions = session.query(Transaction).filter(
+                Transaction.user_id == user_id,
+                Transaction.date >= start_date,
+                Transaction.amount < 0
+            ).order_by(Transaction.date).all()
+            
+            if len(transactions) < 10:
+                return {"recurring": [], "message": "Insufficient data"}
+            
+            # Group transactions by normalized description + similar amount
+            merchant_patterns = defaultdict(list)
+            
+            for t in transactions:
+                # Normalize merchant name
+                merchant = self._extract_merchant(t.description)
+                amt = abs(t.amount)
+                
+                # Create a key based on merchant and approximate amount (within 10%)
+                amount_bucket = round(amt / 5) * 5  # Round to nearest $5
+                key = f"{merchant}|{amount_bucket}"
+                
+                merchant_patterns[key].append({
+                    'id': t.id,
+                    'date': t.date,
+                    'amount': amt,
+                    'description': t.description,
+                    'merchant': merchant
+                })
+            
+            # Analyze patterns to find recurring transactions
+            recurring = []
+            
+            for key, txns in merchant_patterns.items():
+                if len(txns) < 2:
+                    continue
+                
+                # Sort by date
+                txns.sort(key=lambda x: x['date'])
+                
+                # Calculate intervals between transactions
+                intervals = []
+                for i in range(1, len(txns)):
+                    days = (txns[i]['date'] - txns[i-1]['date']).days
+                    if days > 0:
+                        intervals.append(days)
+                
+                if not intervals:
+                    continue
+                
+                avg_interval = np.mean(intervals)
+                std_interval = np.std(intervals) if len(intervals) > 1 else 0
+                
+                # Determine frequency type
+                frequency = None
+                confidence = 0
+                
+                # Weekly (5-9 days)
+                if 5 <= avg_interval <= 9 and std_interval < 3:
+                    frequency = 'weekly'
+                    confidence = max(0, 100 - std_interval * 20)
+                # Bi-weekly (12-16 days)
+                elif 12 <= avg_interval <= 16 and std_interval < 4:
+                    frequency = 'bi-weekly'
+                    confidence = max(0, 100 - std_interval * 15)
+                # Monthly (25-35 days)
+                elif 25 <= avg_interval <= 35 and std_interval < 7:
+                    frequency = 'monthly'
+                    confidence = max(0, 100 - std_interval * 10)
+                # Quarterly (80-100 days)
+                elif 80 <= avg_interval <= 100 and std_interval < 15:
+                    frequency = 'quarterly'
+                    confidence = max(0, 100 - std_interval * 5)
+                # Annual (350-380 days)
+                elif 350 <= avg_interval <= 380 and std_interval < 20:
+                    frequency = 'annual'
+                    confidence = max(0, 100 - std_interval * 3)
+                
+                if frequency and confidence >= 50:
+                    amounts = [t['amount'] for t in txns]
+                    avg_amount = np.mean(amounts)
+                    
+                    # Get category
+                    cat = session.query(Category).join(Transaction).filter(
+                        Transaction.id == txns[-1]['id']
+                    ).first()
+                    cat_name = cat.name if cat else 'Uncategorized'
+                    
+                    # Predict next occurrence
+                    last_date = txns[-1]['date']
+                    if frequency == 'weekly':
+                        next_date = last_date + timedelta(days=7)
+                    elif frequency == 'bi-weekly':
+                        next_date = last_date + timedelta(days=14)
+                    elif frequency == 'monthly':
+                        next_date = last_date + timedelta(days=30)
+                    elif frequency == 'quarterly':
+                        next_date = last_date + timedelta(days=90)
+                    else:  # annual
+                        next_date = last_date + timedelta(days=365)
+                    
+                    recurring.append({
+                        'merchant': txns[0]['merchant'],
+                        'frequency': frequency,
+                        'avg_amount': round(avg_amount, 2),
+                        'total_spent': round(sum(amounts), 2),
+                        'occurrences': len(txns),
+                        'confidence': round(confidence, 0),
+                        'category': cat_name,
+                        'last_date': last_date.isoformat(),
+                        'next_expected': next_date.isoformat(),
+                        'avg_interval_days': round(avg_interval, 1),
+                        'is_subscription': frequency in ['monthly', 'annual'] and avg_amount < 100
+                    })
+            
+            # Sort by confidence then by total spent
+            recurring.sort(key=lambda x: (-x['confidence'], -x['total_spent']))
+            
+            # Calculate summary stats
+            subscriptions = [r for r in recurring if r['is_subscription']]
+            bills = [r for r in recurring if not r['is_subscription'] and r['frequency'] == 'monthly']
+            
+            monthly_recurring_cost = sum(
+                r['avg_amount'] * (4 if r['frequency'] == 'weekly' else 2 if r['frequency'] == 'bi-weekly' else 1)
+                for r in recurring if r['frequency'] in ['weekly', 'bi-weekly', 'monthly']
+            )
+            
+            # Generate insights
+            insights = []
+            
+            if subscriptions:
+                sub_total = sum(s['avg_amount'] for s in subscriptions)
+                insights.append({
+                    'type': 'subscriptions',
+                    'message': f"📱 {len(subscriptions)} subscriptions totaling ${sub_total:.0f}/month"
+                })
+            
+            if bills:
+                bill_total = sum(b['avg_amount'] for b in bills)
+                insights.append({
+                    'type': 'bills',
+                    'message': f"📄 {len(bills)} recurring bills totaling ${bill_total:.0f}/month"
+                })
+            
+            if monthly_recurring_cost > 0:
+                insights.append({
+                    'type': 'total_recurring',
+                    'message': f"💰 Total recurring: ~${monthly_recurring_cost:.0f}/month"
+                })
+            
+            # Find upcoming charges in next 7 days
+            upcoming = [r for r in recurring if r['next_expected'] and 
+                       date.fromisoformat(r['next_expected']) <= end_date + timedelta(days=7)]
+            if upcoming:
+                upcoming_total = sum(u['avg_amount'] for u in upcoming)
+                insights.append({
+                    'type': 'upcoming',
+                    'message': f"⏰ {len(upcoming)} charges expected this week (~${upcoming_total:.0f})"
+                })
+            
+            return {
+                "recurring": recurring[:20],
+                "total_found": len(recurring),
+                "period": f"{months} months analyzed",
+                "insights": insights,
+                "summary": {
+                    "subscriptions": len(subscriptions),
+                    "monthly_bills": len(bills),
+                    "estimated_monthly_recurring": round(monthly_recurring_cost, 2),
+                    "total_recurring_items": len(recurring)
+                }
+            }
+        finally:
+            session.close()
+
+
 _analytics = None
 
 def get_analytics():

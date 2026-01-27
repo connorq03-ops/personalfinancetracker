@@ -523,6 +523,18 @@
     <span class="analytics-chip" onclick="scrollToCard('trends-card')">
         <i class="bi bi-bar-chart-line"></i> Trends
     </span>
+    <span class="analytics-chip" onclick="scrollToCard('merchants-card')">
+        <i class="bi bi-shop"></i> Merchants
+    </span>
+    <span class="analytics-chip" onclick="scrollToCard('patterns-card')">
+        <i class="bi bi-calendar-week"></i> Patterns
+    </span>
+    <span class="analytics-chip" onclick="scrollToCard('breakdown-card')">
+        <i class="bi bi-pie-chart"></i> Breakdown
+    </span>
+    <span class="analytics-chip" onclick="scrollToCard('recurring-card')">
+        <i class="bi bi-arrow-repeat"></i> Recurring
+    </span>
 </div>
 
 <!-- Summary Stats -->
@@ -615,6 +627,58 @@
             </div>
         </div>
     </div>
+    
+    <!-- Top Merchants -->
+    <div class="analytics-card" id="merchants-card">
+        <div class="analytics-card-header" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white;">
+            <i class="bi bi-shop"></i>Top Merchants
+        </div>
+        <div class="analytics-card-body" id="merchants-content">
+            <div class="empty-state">
+                <div class="loading-spinner"></div>
+                <p>Analyzing merchant spending...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Spending Patterns -->
+    <div class="analytics-card" id="patterns-card">
+        <div class="analytics-card-header" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: white;">
+            <i class="bi bi-calendar-week"></i>Spending Patterns
+        </div>
+        <div class="analytics-card-body" id="patterns-content">
+            <div class="empty-state">
+                <div class="loading-spinner"></div>
+                <p>Analyzing spending patterns...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Category Breakdown -->
+    <div class="analytics-card" id="breakdown-card">
+        <div class="analytics-card-header" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); color: white;">
+            <i class="bi bi-pie-chart"></i>Category Breakdown
+        </div>
+        <div class="analytics-card-body" id="breakdown-content">
+            <div class="empty-state">
+                <div class="loading-spinner"></div>
+                <p>Loading category breakdown...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recurring Transactions -->
+    <div class="analytics-card" id="recurring-card">
+        <div class="analytics-card-header" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white;">
+            <i class="bi bi-arrow-repeat"></i>Recurring Transactions
+        </div>
+        <div class="analytics-card-body" id="recurring-content">
+            <div class="empty-state">
+                <div class="loading-spinner"></div>
+                <p>Detecting recurring transactions...</p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -656,7 +720,11 @@ async function loadAllAnalytics() {
         loadAnomalies(),
         loadPredictions(),
         loadInsights(),
-        loadCategoryTrends()
+        loadCategoryTrends(),
+        loadMerchants(),
+        loadSpendingPatterns(),
+        loadCategoryBreakdown(),
+        loadRecurringTransactions()
     ]);
 }
 
@@ -958,6 +1026,363 @@ async function loadCategoryTrends() {
                 </div>
             `;
         });
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        container.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Error: ${error.message}</p></div>`;
+    }
+}
+
+async function loadMerchants() {
+    const container = document.getElementById('merchants-content');
+    try {
+        const response = await fetch('/api/analytics/merchants?months=3');
+        const result = await response.json();
+        
+        if (!result.success) throw new Error(result.error);
+        
+        const data = result.data;
+        const merchants = data.merchants || [];
+        const insights = data.insights || [];
+        const summary = data.summary || {};
+        
+        if (merchants.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="bi bi-shop"></i><p>No merchant data available</p></div>`;
+            return;
+        }
+        
+        let html = `
+            <div class="stat-row">
+                <div>
+                    <div class="stat-value">${data.total_merchants || 0}</div>
+                    <div class="stat-label">Merchants</div>
+                </div>
+                <div>
+                    <div class="stat-value">${summary.total_transactions || 0}</div>
+                    <div class="stat-label">Transactions</div>
+                </div>
+                <div>
+                    <div class="stat-value">${summary.top_5_concentration || 0}%</div>
+                    <div class="stat-label">Top 5 Share</div>
+                </div>
+            </div>
+        `;
+        
+        // Add insights
+        if (insights.length > 0) {
+            html += `<div class="mb-3">`;
+            insights.forEach(i => {
+                html += `<div class="recommendation-item"><i class="bi bi-lightbulb me-2"></i>${i.message}</div>`;
+            });
+            html += `</div>`;
+        }
+        
+        // Add merchant list
+        html += `<div class="merchant-list" style="max-height: 350px; overflow-y: auto;">`;
+        merchants.slice(0, 10).forEach((m, idx) => {
+            const catClass = getCategoryClass(m.primary_category);
+            html += `
+                <div class="merchant-item" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span class="merchant-rank" style="width: 24px; height: 24px; border-radius: 50%; background: ${idx < 3 ? 'linear-gradient(135deg, #f97316, #ea580c)' : 'rgba(255,255,255,0.1)'}; color: ${idx < 3 ? 'white' : 'var(--text-muted)'}; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600;">${idx + 1}</span>
+                        <div>
+                            <div style="font-weight: 600;">${m.name}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                ${m.count} transactions • $${m.avg_transaction.toFixed(0)} avg
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 700; color: var(--text-primary);">$${m.total.toFixed(0)}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">${m.pct_of_spending}%</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        container.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Error: ${error.message}</p></div>`;
+    }
+}
+
+async function loadSpendingPatterns() {
+    const container = document.getElementById('patterns-content');
+    try {
+        const response = await fetch('/api/analytics/spending-patterns?months=3');
+        const result = await response.json();
+        
+        if (!result.success) throw new Error(result.error);
+        
+        const data = result.data;
+        const dayOfWeek = data.day_of_week || [];
+        const insights = data.insights || [];
+        const summary = data.summary || {};
+        
+        if (dayOfWeek.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="bi bi-calendar-week"></i><p>No pattern data available</p></div>`;
+            return;
+        }
+        
+        let html = `
+            <div class="stat-row">
+                <div>
+                    <div class="stat-value">$${(summary.avg_daily_spending || 0).toFixed(0)}</div>
+                    <div class="stat-label">Avg/Day</div>
+                </div>
+                <div>
+                    <div class="stat-value">${summary.weekend_pct || 0}%</div>
+                    <div class="stat-label">Weekend</div>
+                </div>
+                <div>
+                    <div class="stat-value">${data.total_transactions || 0}</div>
+                    <div class="stat-label">Transactions</div>
+                </div>
+            </div>
+        `;
+        
+        // Add insights
+        if (insights.length > 0) {
+            html += `<div class="mb-3">`;
+            insights.forEach(i => {
+                html += `<div class="recommendation-item"><i class="bi bi-lightbulb me-2"></i>${i.message}</div>`;
+            });
+            html += `</div>`;
+        }
+        
+        // Day of week bar chart
+        const maxDow = Math.max(...dayOfWeek.map(d => d.total));
+        html += `
+            <h6 class="mb-2" style="font-size: 0.85rem; color: var(--text-muted);">Spending by Day of Week</h6>
+            <div class="dow-chart" style="display: flex; flex-direction: column; gap: 0.5rem;">
+        `;
+        
+        dayOfWeek.forEach(d => {
+            const barWidth = maxDow > 0 ? (d.total / maxDow * 100) : 0;
+            const isWeekend = d.day_index >= 5;
+            const barColor = isWeekend ? '#f97316' : '#0ea5e9';
+            html += `
+                <div class="dow-row" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="width: 30px; font-size: 0.75rem; color: var(--text-muted);">${d.day.slice(0, 3)}</span>
+                    <div style="flex: 1; height: 24px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; position: relative;">
+                        <div style="width: ${barWidth}%; height: 100%; background: ${barColor}; border-radius: 4px; transition: width 0.3s;"></div>
+                        <span style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; font-weight: 600;">$${d.total.toFixed(0)}</span>
+                    </div>
+                    <span style="width: 40px; text-align: right; font-size: 0.75rem; color: var(--text-muted);">${d.pct_of_total}%</span>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+        
+        // Day of month heatmap (simplified)
+        const domData = data.day_of_month || [];
+        if (domData.length > 0) {
+            html += `
+                <h6 class="mt-3 mb-2" style="font-size: 0.85rem; color: var(--text-muted);">Day of Month Heatmap</h6>
+                <div class="dom-heatmap" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;">
+            `;
+            
+            domData.forEach(d => {
+                const intensity = d.intensity || 0;
+                const bgColor = intensity > 0.7 ? '#ef4444' : intensity > 0.4 ? '#f97316' : intensity > 0.1 ? '#0ea5e9' : 'rgba(255,255,255,0.05)';
+                const textColor = intensity > 0.4 ? 'white' : 'var(--text-muted)';
+                html += `
+                    <div style="aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: ${bgColor}; border-radius: 4px; font-size: 0.65rem; color: ${textColor}; cursor: default;" title="Day ${d.day}: $${d.total.toFixed(0)} (${d.count} txns)">
+                        ${d.day}
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            html += `<div style="display: flex; justify-content: center; gap: 1rem; margin-top: 0.5rem; font-size: 0.7rem; color: var(--text-muted);">
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: rgba(255,255,255,0.05); border-radius: 2px; vertical-align: middle;"></span> Low</span>
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: #0ea5e9; border-radius: 2px; vertical-align: middle;"></span> Medium</span>
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: #f97316; border-radius: 2px; vertical-align: middle;"></span> High</span>
+                <span><span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; border-radius: 2px; vertical-align: middle;"></span> Peak</span>
+            </div>`;
+        }
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        container.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Error: ${error.message}</p></div>`;
+    }
+}
+
+async function loadCategoryBreakdown() {
+    const container = document.getElementById('breakdown-content');
+    try {
+        const response = await fetch('/api/analytics/category-breakdown');
+        const result = await response.json();
+        
+        if (!result.success) throw new Error(result.error);
+        
+        const data = result.data;
+        const categories = data.categories || [];
+        const groups = data.groups || [];
+        
+        if (categories.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="bi bi-pie-chart"></i><p>No spending data available</p></div>`;
+            return;
+        }
+        
+        let html = `
+            <div class="text-center mb-3">
+                <div style="font-size: 0.85rem; color: var(--text-muted);">${data.month_name}</div>
+                <div style="font-size: 1.5rem; font-weight: 700;">$${data.total_spending.toLocaleString()}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">${data.total_categories} categories</div>
+            </div>
+        `;
+        
+        // Donut chart using CSS
+        html += `<div class="donut-chart-container" style="position: relative; width: 180px; height: 180px; margin: 0 auto 1rem;">`;
+        
+        // Create donut segments
+        let cumulativePct = 0;
+        const segments = groups.slice(0, 6); // Top 6 groups
+        
+        html += `<svg viewBox="0 0 36 36" style="width: 100%; height: 100%; transform: rotate(-90deg);">`;
+        segments.forEach((g, idx) => {
+            const dashArray = `${g.pct} ${100 - g.pct}`;
+            const dashOffset = -cumulativePct;
+            html += `<circle cx="18" cy="18" r="15.9" fill="none" stroke="${g.color}" stroke-width="3.5" 
+                stroke-dasharray="${dashArray}" stroke-dashoffset="${dashOffset}" 
+                style="cursor: pointer;" data-group="${g.name}" data-amount="${g.total}" data-pct="${g.pct}"/>`;
+            cumulativePct += g.pct;
+        });
+        html += `</svg>`;
+        
+        // Center text
+        html += `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--text-muted);">Top Category</div>
+            <div style="font-size: 0.85rem; font-weight: 600;">${groups[0]?.name || 'N/A'}</div>
+            <div style="font-size: 0.75rem; color: ${groups[0]?.color || '#666'};">${groups[0]?.pct || 0}%</div>
+        </div>`;
+        html += `</div>`;
+        
+        // Legend
+        html += `<div class="breakdown-legend" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">`;
+        groups.slice(0, 6).forEach(g => {
+            html += `
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem;">
+                    <span style="width: 12px; height: 12px; border-radius: 3px; background: ${g.color}; flex-shrink: 0;"></span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${g.name}</span>
+                    <span style="font-weight: 600;">${g.pct}%</span>
+                </div>
+            `;
+        });
+        html += `</div>`;
+        
+        // Top categories list
+        html += `<h6 style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">Top Categories</h6>`;
+        html += `<div style="max-height: 200px; overflow-y: auto;">`;
+        categories.slice(0, 8).forEach((c, idx) => {
+            html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: ${c.color};"></span>
+                        <span style="font-size: 0.85rem;">${c.name}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-weight: 600;">$${c.total.toFixed(0)}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">${c.pct}%</span>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        container.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-circle"></i><p>Error: ${error.message}</p></div>`;
+    }
+}
+
+async function loadRecurringTransactions() {
+    const container = document.getElementById('recurring-content');
+    try {
+        const response = await fetch('/api/analytics/recurring?months=6');
+        const result = await response.json();
+        
+        if (!result.success) throw new Error(result.error);
+        
+        const data = result.data;
+        const recurring = data.recurring || [];
+        const insights = data.insights || [];
+        const summary = data.summary || {};
+        
+        if (recurring.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="bi bi-arrow-repeat"></i><p>No recurring transactions detected yet.<br><small>Need more transaction history.</small></p></div>`;
+            return;
+        }
+        
+        let html = `
+            <div class="stat-row">
+                <div>
+                    <div class="stat-value">${summary.subscriptions || 0}</div>
+                    <div class="stat-label">Subscriptions</div>
+                </div>
+                <div>
+                    <div class="stat-value">${summary.monthly_bills || 0}</div>
+                    <div class="stat-label">Bills</div>
+                </div>
+                <div>
+                    <div class="stat-value">$${(summary.estimated_monthly_recurring || 0).toFixed(0)}</div>
+                    <div class="stat-label">Monthly</div>
+                </div>
+            </div>
+        `;
+        
+        // Add insights
+        if (insights.length > 0) {
+            html += `<div class="mb-3">`;
+            insights.forEach(i => {
+                html += `<div class="recommendation-item"><i class="bi bi-lightbulb me-2"></i>${i.message}</div>`;
+            });
+            html += `</div>`;
+        }
+        
+        // Recurring items list
+        html += `<div class="recurring-list" style="max-height: 350px; overflow-y: auto;">`;
+        recurring.forEach(r => {
+            const freqBadgeColor = {
+                'weekly': '#3b82f6',
+                'bi-weekly': '#8b5cf6',
+                'monthly': '#22c55e',
+                'quarterly': '#f59e0b',
+                'annual': '#ef4444'
+            }[r.frequency] || '#64748b';
+            
+            const isUpcoming = new Date(r.next_expected) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            
+            html += `
+                <div class="recurring-item" style="padding: 0.75rem; border-bottom: 1px solid var(--border-color); ${isUpcoming ? 'background: rgba(34, 197, 94, 0.1);' : ''}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.25rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            ${r.is_subscription ? '<i class="bi bi-phone" style="color: #a855f7;"></i>' : '<i class="bi bi-receipt" style="color: #22c55e;"></i>'}
+                            <span style="font-weight: 600;">${r.merchant}</span>
+                        </div>
+                        <span style="font-weight: 700;">$${r.avg_amount.toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-muted);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="background: ${freqBadgeColor}; color: white; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.65rem; text-transform: uppercase;">${r.frequency}</span>
+                            <span>${r.occurrences}x</span>
+                            <span style="opacity: 0.7;">${r.confidence}% conf</span>
+                        </div>
+                        <div>
+                            ${isUpcoming ? '<span style="color: #22c55e;"><i class="bi bi-clock"></i> Soon</span>' : `Next: ${r.next_expected.slice(5)}`}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
         
         container.innerHTML = html;
         
